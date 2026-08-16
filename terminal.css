@@ -47,3 +47,35 @@
 .margin span { display: flex; flex-direction: column; gap: 3px; }
 .margin small { color: #555d66; font-size: 8px; }
 @media(max-width:1100px){.timeframe-tabs button{min-width:27px;padding:0 5px}.zoom-controls{display:none}.chart-actions button{padding:0 5px}.quote-strip{gap:16px}}
+
+/* Readable terminal type scale */
+body { font-size: 15px; }
+.brand small,.symbol small,.header-stats small,label { font-size: 11px; }
+.header-stats b { font-size: 14px; }
+.brand strong { font-size: 18px; }
+.symbol strong { font-size: 16px; }
+.timeframe-tabs button { font-size: 12px; }
+.chart-actions button { font-size: 12px; }
+.clock span { font-size: 12px; }
+.clock b { font-size: 21px; }
+.quote-strip small { font-size: 10px; }
+.quote-strip b { font-size: 14px; }
+.panel-title small,.live { font-size: 10px; }
+.panel-title h2 { font-size: 19px; }
+.bidask small { font-size: 10px; }
+.bidask b { font-size: 17px; }
+.margin,.position-grid small,.no-position,.close-position { font-size: 12px; }
+.order-buttons small { font-size: 11px; }
+.order-buttons span { font-size: 14px; }
+.position-item-head b { font-size: 12px; }
+.position-item-head button { font-size: 10px; }
+.position-item-grid { font-size: 11px; }
+.position-item-grid small { font-size: 9px; }
+.history-head,.results-title { font-size: 10px; }
+.history-row { font-size: 11px; }
+.history-row small,.results-grid small { font-size: 9px; }
+.results-grid b { font-size: 12px; }
+.history-empty { font-size: 12px; }
+.chart-legend { font-size: 12px; }
+.chart-tooltip { font-size: 12px; }
+.timeline,footer { font-size: 11px; }
