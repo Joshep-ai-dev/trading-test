@@ -12,4 +12,8 @@ npm start
 
 Then open `http://localhost:4173`.
 
+## Deploy to Vercel
+
+The frontend is deployed as static files and `api/candles.js` is deployed as the `/api/candles` Vercel Function. `server.js` is only used by `npm start` for local development; it must not be configured as a Vercel Function or production entrypoint.
+
 The current price feed is deterministic simulated data, clearly labelled in the UI. Replace `makeCandles()` in `app.js` with an exchange or historical-data adapter when a real data source is selected.
