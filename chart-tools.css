@@ -1,0 +1,7 @@
+.zoom-controls { display: flex; gap: 3px; }
+.zoom-controls button { min-width: 34px; padding: 0 8px; }
+.chart-wrap canvas { cursor: crosshair; }
+.chart-wrap canvas.dragging { cursor: grabbing; }
+.chart-tooltip { position: absolute; z-index: 3; pointer-events: none; background: #181b1fee; border: 1px solid #343940; padding: 8px 10px; box-shadow: 0 6px 20px #0008; font: 10px ui-monospace; line-height: 1.6; white-space: nowrap; }
+.chart-tooltip b { color: var(--gold); font-weight: 600; }
+.chart-tooltip span { color: #8c949d; }

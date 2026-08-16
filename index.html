@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Argent Replay — XAGUSDT Futures Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="chart-tools.css" />
+  <link rel="stylesheet" href="terminal.css" />
+</head>
+<body>
+  <header>
+    <div class="brand"><span class="brand-mark">Ag</span><div><strong>ARGENT</strong><small>REPLAY TERMINAL</small></div></div>
+    <div class="symbol"><span class="gold-dot"></span><div><strong>XAG / USDT</strong><small>OKX perpetual · Real historical feed</small></div></div>
+    <div class="header-stats"><span><small>Balance</small><b id="balance">10,000.00 USDT</b></span><span><small>Equity</small><b id="equity">10,000.00 USDT</b></span><span><small>Used margin</small><b id="usedMargin">0.00 USDT</b></span><span><small>Free margin</small><b id="freeMargin">10,000.00 USDT</b></span></div>
+  </header>
+
+  <main>
+    <section class="chart-panel">
+      <div class="toolbar">
+        <div class="date-block"><label>7-DAY START (UTC)</label><input id="replayDate" type="date" min="2026-01-28" value="2026-08-09" /></div>
+        <div class="divider"></div>
+        <button id="playBtn" class="play" aria-label="Play">▶</button>
+        <select id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="60">60×</option><option value="240">240×</option><option value="1440">1 day/sec</option></select>
+        <div class="timeframe-tabs" id="timeframeTabs">
+          <button data-timeframe="1" class="active">1m</button><button data-timeframe="5">5m</button><button data-timeframe="10">10m</button><button data-timeframe="15">15m</button><button data-timeframe="30">30m</button><button data-timeframe="60">1H</button><button data-timeframe="240">4H</button><button data-timeframe="1440">1D</button>
+        </div>
+        <select id="timeframe" class="hidden" aria-label="Chart timeframe"><option value="1">1m</option><option value="5">5m</option><option value="10">10m</option><option value="15">15m</option><option value="30">30m</option><option value="60">1H</option><option value="240">4H</option><option value="1440">1D</option></select>
+        <button id="resetBtn" class="ghost">↻ Reset</button>
+        <div class="zoom-controls">
+          <button id="zoomOut" class="ghost" title="Zoom out">−</button>
+          <button id="zoomIn" class="ghost" title="Zoom in">＋</button>
+          <button id="zoomReset" class="ghost" title="Reset chart view">Fit</button>
+        </div>
+        <div class="zoom-controls vertical-zoom">
+          <button id="priceZoomIn" class="ghost" title="Vertical price zoom in">Y＋</button>
+          <button id="priceZoomOut" class="ghost" title="Vertical price zoom out">Y−</button>
+          <button id="priceZoomReset" class="ghost" title="Auto-scale price">Auto</button>
+        </div>
+        <div class="clock"><span id="dateLabel">12 MAY 2025</span><b id="timeLabel">09:30:00</b></div>
+      </div>
+      <div class="quote-strip">
+        <div class="chart-actions"><button class="active">▥ Candles</button><button id="indicatorBtn">ƒx Indicators</button><button id="snapshotBtn">⌁ Snapshot</button></div>
+        <div><small>OPEN</small><b id="openVal">—</b></div><div><small>HIGH</small><b id="highVal">—</b></div><div><small>LOW</small><b id="lowVal">—</b></div><div><small>CLOSE</small><b id="closeVal">—</b></div>
+        <span id="moveBadge">0.00%</span>
+      </div>
+      <div class="chart-wrap">
+        <nav class="drawing-tools" aria-label="Chart drawing tools"><button title="Cursor" class="active">⌖</button><button title="Trend line">╱</button><button title="Horizontal line">―</button><button title="Measure">↔</button><button title="Text">T</button><button title="Magnifier">⌕</button><span></span><button title="Delete drawings">⌫</button></nav>
+        <div class="chart-legend"><b>XAGUSDT</b><span>·</span><span id="legendTimeframe">1m</span><span>·</span><span class="positive">OKX REAL DATA</span></div>
+        <canvas id="chart"></canvas>
+        <div id="chartTooltip" class="chart-tooltip hidden"></div>
+        <button id="goLive" class="go-live hidden">Go to latest</button>
+        <div id="emptyHint" class="empty-hint"><b>Historical replay ready</b><span>Press play to move through the session</span></div>
+      </div>
+      <div class="timeline"><span>7-DAY PROGRESS · UTC</span><input id="scrubber" type="range" min="0" max="10079" value="30" /><span id="progress">Loading…</span></div>
+    </section>
+
+    <aside>
+      <div class="ticket">
+        <div class="panel-title"><div><small>ORDER TICKET</small><h2>Market order</h2></div><span class="live"><i></i> REPLAY</span></div>
+        <div class="bidask"><div><small>SELL</small><b id="bid">—</b></div><div><small>BUY</small><b id="ask">—</b></div></div>
+        <label>ORDER MARGIN <span>USDT</span></label><div class="number-input"><button data-step="-10">−</button><input id="size" type="number" min="1" max="100000" step="10" value="100" /><button data-step="10">+</button></div>
+        <div class="risk-row"><div><label>STOP LOSS <span>USDT</span></label><input id="sl" type="number" placeholder="Optional" step="0.1" /></div><div><label>TAKE PROFIT <span>USDT</span></label><input id="tp" type="number" placeholder="Optional" step="0.1" /></div></div>
+        <div class="leverage-row"><label for="leverage">LEVERAGE <span>Isolated</span></label><select id="leverage"><option value="1">1×</option><option value="2">2×</option><option value="5">5×</option><option value="10">10×</option><option value="20" selected>20×</option><option value="50">50×</option></select></div>
+        <div class="margin"><span>Position value <small>Margin × leverage</small></span><b id="margin">—</b></div>
+        <div class="order-buttons"><button id="shortBtn" class="short"><span>SHORT</span><small>Sell market</small></button><button id="longBtn" class="long"><span>LONG</span><small>Buy market</small></button></div>
+      </div>
+
+      <div class="position-card">
+        <div class="panel-title compact"><div><small>OPEN POSITIONS</small><h2 id="positionStatus">No active trades</h2></div><span id="positionSide" class="side-pill hidden"></span></div>
+        <div id="noPosition" class="no-position"><span>◎</span><p>Choose long or short to enter the replay market.</p></div>
+        <div id="positionData" class="hidden">
+          <div class="pnl"><small>UNREALIZED P&amp;L</small><b id="pnl">+0.00 USDT</b><span id="roe">0.00%</span></div>
+          <div id="positionsList" class="positions-list"></div>
+          <button id="closeBtn" class="close-position">Close all positions at market</button>
+        </div>
+      </div>
+      <div class="history-card">
+        <div class="panel-title compact"><div><small>TRADING HISTORY</small><h2>Closed trades</h2></div><b id="historyCount">0</b></div>
+        <div class="history-head"><span>Trade</span><span>Entry / Exit</span><span>P&amp;L</span></div>
+        <div id="historyList" class="history-list"><div class="history-empty">No closed trades yet</div></div>
+        <div class="results-title">TRADING RESULT</div>
+        <div class="results-grid">
+          <span><small>NET P&amp;L</small><b id="resultNet">0.00 USDT</b></span>
+          <span><small>RETURN</small><b id="resultReturn">0.00%</b></span>
+          <span><small>WIN RATE</small><b id="resultWinRate">—</b></span>
+          <span><small>W / L</small><b id="resultWL">0 / 0</b></span>
+          <span><small>AVG TRADE</small><b id="resultAverage">0.00</b></span>
+          <span><small>PROFIT FACTOR</small><b id="resultFactor">—</b></span>
+          <span><small>MAX DRAWDOWN</small><b id="resultDrawdown">0.00</b></span>
+          <span><small>OPEN P&amp;L</small><b id="resultOpen">0.00</b></span>
+        </div>
+      </div>
+      <div id="toast" class="toast"></div>
+    </aside>
+  </main>
+
+  <footer><span>REAL OKX MARKET DATA · SIMULATED ORDERS · NO REAL FUNDS</span><span>Realized P&amp;L <b id="realized">0.00 USDT</b> · Trades <b id="trades">0</b></span></footer>
+  <script src="app.js"></script>
+</body>
+</html>
