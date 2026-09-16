@@ -18,7 +18,7 @@
   <main>
     <section class="chart-panel">
       <div class="toolbar">
-        <div class="date-block"><label>7-DAY START (UTC)</label><input id="replayDate" type="date" min="2026-01-28" value="2026-08-09" /></div>
+        <div class="date-block"><label>MONTH START (UTC)</label><input id="replayDate" type="date" min="2026-01-28" value="2026-08-09" /></div>
         <div class="divider"></div>
         <button id="playBtn" class="play" aria-label="Play">▶</button>
         <select id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="60">60×</option><option value="240">240×</option><option value="1440">1 day/sec</option></select>
@@ -39,6 +39,17 @@
         </div>
         <div class="clock"><span id="dateLabel">12 MAY 2025</span><b id="timeLabel">09:30:00</b></div>
       </div>
+      <div class="chart-settings">
+        <label for="timeZone">TIME ZONE</label>
+        <select id="timeZone" aria-label="Display and jump time zone"></select>
+        <label id="jumpLabel" for="jumpDate">GO TO (UTC)</label>
+        <input id="jumpDate" type="datetime-local" step="60" aria-label="Jump to date and time in UTC" disabled />
+        <button id="jumpBtn" class="ghost" disabled>Go</button>
+        <label for="timeGrid">TIME GRID</label>
+        <select id="timeGrid"><option value="0">Auto</option><option value="1">1 min</option><option value="5">5 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="1440">1 day</option></select>
+        <label for="priceGrid">PRICE GRID</label>
+        <select id="priceGrid"><option value="0">Auto</option><option value="0.01">0.01</option><option value="0.05">0.05</option><option value="0.1">0.10</option><option value="0.25">0.25</option><option value="0.5">0.50</option><option value="1">1.00</option><option value="2">2.00</option><option value="5">5.00</option></select>
+      </div>
       <div class="quote-strip">
         <div class="chart-actions"><button class="active">▥ Candles</button><button id="indicatorBtn" class="active">ƒx RSI · MACD</button><button id="snapshotBtn">⌁ Snapshot</button></div>
         <div><small>OPEN</small><b id="openVal">—</b></div><div><small>HIGH</small><b id="highVal">—</b></div><div><small>LOW</small><b id="lowVal">—</b></div><div><small>CLOSE</small><b id="closeVal">—</b></div>
@@ -52,7 +63,7 @@
         <button id="goLive" class="go-live hidden">Go to latest</button>
         <div id="emptyHint" class="empty-hint"><b>Historical replay ready</b><span>Press play to move through the session</span></div>
       </div>
-      <div class="timeline"><span>7-DAY PROGRESS · UTC</span><input id="scrubber" type="range" min="0" max="10079" value="30" /><span id="progress">Loading…</span></div>
+      <div class="timeline"><span id="timelineLabel">MONTH PROGRESS · UTC</span><input id="scrubber" type="range" min="0" max="44639" value="30" /><span id="progress">Loading…</span></div>
     </section>
 
     <aside>
@@ -96,6 +107,7 @@
   </main>
 
   <footer><span>REAL OKX MARKET DATA · SIMULATED ORDERS · NO REAL FUNDS</span><span>Realized P&amp;L <b id="realized">0.00 USDT</b> · Trades <b id="trades">0</b></span></footer>
+  <script src="chart-utils.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
