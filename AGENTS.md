@@ -31,7 +31,7 @@ Follow existing vanilla JavaScript patterns: `const`/`let`, single-quoted string
 
 Tests use `node:test` in `tests/*.test.js`; no coverage threshold is set. Run syntax checks and manually verify date loading, timeframe changes, playback, chart interactions, long/short orders, stop-loss/take-profit, and balance updates for relevant changes. Check browser console errors and responsive layout.
 
-For candle changes, exercise `/api/candles?date=2026-08-09` and invalid dates. Verify UTC timestamps, chronological ordering, one-month bounds, and error handling in both server implementations. Network access to OKX is required for real-data checks.
+For candle changes, exercise `/api/candles?date=2026-08-09` and invalid dates. Verify UTC timestamps, chronological ordering, seven-day initial bounds, one-day extension, rate-limit retries, and error handling in both server implementations. Network access to OKX is required for real-data checks.
 
 ## Commit & Pull Request Guidelines
 

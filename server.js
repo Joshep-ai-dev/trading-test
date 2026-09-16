@@ -20,7 +20,8 @@ http.createServer(async (req, res) => {
       }
       res.end(JSON.stringify(await loadCandles(date, days)));
     } catch (error) {
-      res.writeHead(502);
+      if (error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
+      res.writeHead(error.status || 502);
       res.end(JSON.stringify({ error:error.message }));
     }
     return;

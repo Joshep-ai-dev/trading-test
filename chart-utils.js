@@ -1,13 +1,4 @@
 (function(root) {
-  function monthEnd(start) {
-    const date = new Date(start), day = date.getUTCDate();
-    date.setUTCDate(1);
-    date.setUTCMonth(date.getUTCMonth() + 1);
-    const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
-    date.setUTCDate(Math.min(day, lastDay));
-    return date.getTime();
-  }
-
   function niceStep(raw) {
     const power = 10 ** Math.floor(Math.log10(Math.max(raw, 0.01)));
     return [1, 2, 5, 10].find(value => value * power >= raw) * power;
@@ -66,7 +57,7 @@
     return [...candidates].sort((a, b) => a - b);
   }
 
-  const helpers = { monthEnd, niceStep, priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates };
+  const helpers = { niceStep, priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates };
   if (typeof module !== 'undefined' && module.exports) module.exports = helpers;
   else root.ChartUtils = helpers;
 })(globalThis);

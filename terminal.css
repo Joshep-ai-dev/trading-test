@@ -112,3 +112,7 @@ body { font-size: 15px; }
 
 #timeZone { max-width: 200px; }
 #jumpLabel { max-width: 240px; overflow-wrap: anywhere; }
+
+.data-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 5px 12px; color: var(--muted); font-size: 11px; }
+.data-status:has(#dataStatus:empty) { display: none; }
+.data-status button { padding: 5px 8px; }

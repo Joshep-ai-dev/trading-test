@@ -18,7 +18,7 @@
   <main>
     <section class="chart-panel">
       <div class="toolbar">
-        <div class="date-block"><label>MONTH START (UTC)</label><input id="replayDate" type="date" min="2026-01-28" value="2026-08-09" /></div>
+        <div class="date-block"><label>WEEK START (UTC)</label><input id="replayDate" type="date" min="2026-01-28" value="2026-08-09" /></div>
         <div class="divider"></div>
         <button id="playBtn" class="play" aria-label="Play">▶</button>
         <select id="speed"><option value="1">1×</option><option value="5">5×</option><option value="15" selected>15×</option><option value="60">60×</option><option value="240">240×</option><option value="1440">1 day/sec</option></select>
@@ -63,7 +63,8 @@
         <button id="goLive" class="go-live hidden">Go to latest</button>
         <div id="emptyHint" class="empty-hint"><b>Historical replay ready</b><span>Press play to move through the session</span></div>
       </div>
-      <div class="timeline"><span id="timelineLabel">MONTH PROGRESS · UTC</span><input id="scrubber" type="range" min="0" max="44639" value="30" /><span id="progress">Loading…</span></div>
+      <div class="data-status"><span id="dataStatus" role="status" aria-live="polite"></span><button id="retryData" class="ghost hidden">Retry next day</button></div>
+      <div class="timeline"><span id="timelineLabel">REPLAY PROGRESS · UTC</span><input id="scrubber" type="range" min="0" max="10079" value="30" /><span id="progress">Loading…</span></div>
     </section>
 
     <aside>

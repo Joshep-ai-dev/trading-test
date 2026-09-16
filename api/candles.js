@@ -17,6 +17,7 @@ module.exports = async function handler(request, response) {
     return response.status(200).json(payload);
   } catch (error) {
     console.error('XAG candle request failed:', error);
-    return response.status(502).json({ error: error.message || 'Market data request failed' });
+    if (error.retryAfter) response.setHeader('Retry-After', String(error.retryAfter));
+    return response.status(error.status || 502).json({ error: error.message || 'Market data request failed' });
   }
 };

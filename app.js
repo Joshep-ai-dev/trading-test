@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 const state = { candles: [], index: 30, playing: false, timer: null, balance: 10000, realized: 0, trades: 0, positions: [], nextPositionId: 1, history: [], visibleCount: 90, viewOffset: 0, hoverIndex: null, dragging: false, dragX: 0, priceScale: 1, priceDragging: false, priceDragY: 0 };
 const chart = $('chart'), ctx = chart.getContext('2d');
 const INITIAL_BALANCE = 10000;
-const { monthEnd, priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates } = ChartUtils;
+const { priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates } = ChartUtils;
 
 let timeZone = 'UTC';
 const localZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -19,7 +19,7 @@ $('timeZone').value = timeZone;
 function refreshTimeLabels() {
   $('jumpLabel').textContent = `GO TO (${timeZone})`;
   $('jumpDate').setAttribute('aria-label', `Jump to date and time in ${timeZone}`);
-  $('timelineLabel').textContent = `MONTH PROGRESS | ${timeZone}`;
+  $('timelineLabel').textContent = `REPLAY PROGRESS | ${timeZone}`;
   if (!state.candles.length) return;
   const now = zonedTime(current().timestamp, timeZone);
   $('timeLabel').textContent = now.value.slice(5, 16).replace('T', ' ');
@@ -127,9 +127,25 @@ function update(){
   const amount=Number($('size').value)||0,leverage=Number($('leverage').value)||1;$('margin').textContent=`${fmt(amount*leverage)} USDT`;
   const profit=totalPnl(),marginUsed=usedMargin(),roe=marginUsed?profit/marginUsed*100:0;$('pnl').textContent=`${profit>=0?'+':''}${fmt(profit)} USDT`;$('pnl').className=profit>=0?'positive':'negative';$('roe').textContent=`${roe>=0?'+':''}${roe.toFixed(2)}%`;$('roe').className=roe>=0?'positive':'negative';$('equity').textContent=`${fmt(state.balance+profit)} USDT`;renderPositions();
   $('balance').textContent=`${fmt(state.balance)} USDT`;$('usedMargin').textContent=`${fmt(marginUsed)} USDT`;$('freeMargin').textContent=`${fmt(Math.max(0,state.balance+profit-marginUsed))} USDT`;$('realized').textContent=`${fmt(state.realized)} USDT`;$('trades').textContent=state.trades;renderResults();draw();
+  ensureNextDay();
   const liquidated=state.positions.find(p=>(p.side==='LONG'&&c.low<=p.liquidation)||(p.side==='SHORT'&&c.high>=p.liquidation));if(liquidated){closePosition(liquidated.id,'Liquidated',liquidated.liquidation);return}const triggered=state.positions.find(p=>p.sl&&((p.side==='LONG'&&c.low<=p.sl)||(p.side==='SHORT'&&c.high>=p.sl))||p.tp&&((p.side==='LONG'&&c.high>=p.tp)||(p.side==='SHORT'&&c.low<=p.tp)));if(triggered){const isSl=triggered.sl&&((triggered.side==='LONG'&&c.low<=triggered.sl)||(triggered.side==='SHORT'&&c.high>=triggered.sl));closePosition(triggered.id,isSl?'Stop loss triggered':'Take profit triggered',isSl?triggered.sl:triggered.tp)}
 }
-function play(){if(!state.candles.length)return toast('Load real market data first');state.playing=!state.playing;$('playBtn').textContent=state.playing?'Ⅱ':'▶';clearInterval(state.timer);if(state.playing)state.timer=setInterval(()=>{if(state.index>=state.candles.length-1){state.playing=false;clearInterval(state.timer);$('playBtn').textContent='▶';return}state.index++;update()},Math.max(40,700/Number($('speed').value)));}
+function play() {
+  if (!state.candles.length) return toast('Load real market data first');
+  if (state.playing) return pauseReplay();
+  state.playing = true;
+  $('playBtn').textContent = '\u2161';
+  state.timer = setInterval(() => {
+    ensureNextDay();
+    if (state.index >= state.candles.length - 1) {
+      if (!state.loadingMore) pauseReplay();
+      return;
+    }
+    state.index++;
+    update();
+  }, Math.max(40, 700 / Number($('speed').value)));
+}
+
 function pauseReplay(){if(!state.playing)return;state.playing=false;clearInterval(state.timer);$('playBtn').textContent='▶'}
 function openPosition(side){if(!state.candles.length)return toast('Load market data first');const margin=Number($('size').value),leverage=Number($('leverage').value);if(!margin||margin<=0)return toast('Enter a valid USDT margin');const c=current(),entry=c.close+(side==='LONG'?.003:-.003),notional=margin*leverage,quantity=notional/entry,liquidation=side==='LONG'?entry-entry/leverage:entry+entry/leverage,freeMargin=state.balance+totalPnl()-usedMargin(),sl=Number($('sl').value)||null,tp=Number($('tp').value)||null;if(margin>freeMargin)return toast(`Insufficient free margin · need ${fmt(margin)} USDT`);if(sl&&((side==='LONG'&&sl>=entry)||(side==='SHORT'&&sl<=entry)))return toast('Stop loss must be beyond the entry price');if(tp&&((side==='LONG'&&tp<=entry)||(side==='SHORT'&&tp>=entry)))return toast('Take profit must be beyond the entry price');const id=state.nextPositionId++;state.positions.push({id,side,entry,leverage,margin,notional,quantity,liquidation,sl,tp,openIndex:state.index,openMinute:c.minute});toast(`#${id} ${side} · ${fmt(margin)} USDT margin · ${leverage}×`);update();}
 function closePosition(id,reason='Position closed',fill=current().close){const index=state.positions.findIndex(p=>p.id===id);if(index<0)return;const p=state.positions[index],profit=positionPnl(p,fill);state.balance+=profit;state.realized+=profit;state.trades++;state.history.unshift({id:p.id,side:p.side,entry:p.entry,exit:fill,profit,reason,leverage:p.leverage,margin:p.margin,notional:p.notional,openMinute:p.openMinute,closeMinute:current().minute});state.positions.splice(index,1);renderHistory();toast(`#${p.id} ${reason} · ${profit>=0?'+':''}${fmt(profit)} USDT`);update();}
@@ -143,13 +159,15 @@ async function reset() {
   const requestId = (state.loadId || 0) + 1;
   state.loadId = requestId;
   pauseReplay();
-  Object.assign(state, { index: 0, balance: INITIAL_BALANCE, realized: 0, trades: 0, visibleCount: 90, viewOffset: 0, hoverIndex: null, candles: [], chartMeta: null, priceScale: 1, positions: [], history: [], nextPositionId: 1 });
+  Object.assign(state, { index: 0, balance: INITIAL_BALANCE, realized: 0, trades: 0, visibleCount: 90, viewOffset: 0, hoverIndex: null, candles: [], chartMeta: null, priceScale: 1, positions: [], history: [], nextPositionId: 1, loadingMore: false, moreBlocked: false, nextDayStart: null });
   ['playBtn', 'scrubber', 'jumpDate', 'jumpBtn'].forEach(id => $(id).disabled = true);
   $('chartTooltip').classList.add('hidden');
   $('goLive').classList.add('hidden');
   $('emptyHint').style.display = 'flex';
-  $('emptyHint').innerHTML = '<b>Loading one month of OKX candles...</b><span>0 days loaded | UTC</span>';
+  $('emptyHint').innerHTML = '<b>Loading seven days of OKX candles...</b><span>0 days loaded | UTC</span>';
   $('progress').textContent = 'Loading...';
+  $('dataStatus').textContent = '';
+  $('retryData').classList.add('hidden');
   renderHistory();
   renderResults();
   renderPositions();
@@ -157,29 +175,20 @@ async function reset() {
   try {
     const start = Date.parse(`${$('replayDate').value}T00:00:00Z`);
     if (!Number.isFinite(start)) throw new Error('Choose a valid start date');
-    const end = monthEnd(start), days = (end - start) / 86400000;
-    const chunks = new Array(days);
-    let next = 0, completed = 0;
-    async function worker() {
-      while (next < days) {
-        const day = next++;
-        const date = new Date(start + day * 86400000).toISOString().slice(0, 10);
-        const response = await fetch(`/api/candles?date=${date}&days=1`, { signal: controller.signal });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Market data request failed');
-        if (requestId !== state.loadId) return;
-        chunks[day] = payload.candles;
-        completed++;
-        $('emptyHint').querySelector('span').textContent = `${completed} / ${days} days loaded | UTC`;
-      }
+    const days = 7, end = start + days * 86400000;
+    const chunks = [];
+    for (let day = 0; day < days; day++) {
+      const candles = await fetchCandleDay(start + day * 86400000, controller.signal);
+      if (requestId !== state.loadId) return;
+      chunks.push(candles);
+      $('emptyHint').querySelector('span').textContent = `${day + 1} / ${days} days loaded | UTC`;
     }
-    await Promise.all([worker(), worker(), worker()]);
     if (requestId !== state.loadId) return;
     const candles = chunks.flat().filter(c => c.timestamp >= start && c.timestamp < end)
       .sort((a, b) => a.timestamp - b.timestamp)
       .filter((c, i, all) => !i || c.timestamp !== all[i - 1].timestamp)
       .map(c => ({ ...c, minute: Math.floor((c.timestamp - start) / 60000) }));
-    if (!candles.length) throw new Error('No XAGUSDT candles exist for this month');
+    if (!candles.length) throw new Error('No XAGUSDT candles exist for this week');
     Object.assign(state, { candles, rangeStart: start, rangeEnd: end, rangeDays: days, index: Math.min(89, candles.length - 1) });
     $('scrubber').max = candles.length - 1;
     refreshJumpTime();
@@ -194,6 +203,68 @@ async function reset() {
     $('emptyHint').querySelector('span').textContent = error.message;
     $('progress').textContent = 'Load failed';
     toast(error.message);
+  }
+}
+
+async function fetchCandleDay(start, signal) {
+  const date = new Date(start).toISOString().slice(0, 10);
+  const response = await fetch(`/api/candles?date=${date}&days=1`, { signal });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(payload.error || `Market data request failed (${response.status})`);
+  return payload.candles;
+}
+
+function ensureNextDay() {
+  if (!state.candles.length || state.loadingMore || state.moreBlocked) return;
+  if (current().timestamp >= state.rangeEnd - 86400000 || state.index === state.candles.length - 1) loadNextDay();
+}
+
+async function loadNextDay() {
+  if (!state.candles.length || state.loadingMore) return;
+  const requestId = state.loadId;
+  const start = state.nextDayStart ?? state.rangeEnd;
+  state.loadingMore = true;
+  state.moreBlocked = false;
+  $('retryData').classList.add('hidden');
+  $('dataStatus').textContent = `Loading ${new Date(start).toISOString().slice(0, 10)} (UTC)...`;
+  try {
+    if (start >= Date.now()) {
+      state.moreBlocked = true;
+      $('dataStatus').textContent = 'No newer market data yet. Retry later.';
+      $('retryData').classList.remove('hidden');
+      return;
+    }
+    const rows = await fetchCandleDay(start, state.loadController.signal);
+    if (requestId !== state.loadId) return;
+    const previousLast = state.candles.at(-1).timestamp;
+    const end = start + 86400000;
+    const additions = rows.filter(c => c.timestamp >= start && c.timestamp < end && c.timestamp > previousLast)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .filter((c, i, all) => !i || c.timestamp !== all[i - 1].timestamp)
+      .map(c => ({ ...c, minute: Math.floor((c.timestamp - state.rangeStart) / 60000) }));
+    state.candles.push(...additions);
+    state.rangeEnd = Math.max(state.rangeEnd, end);
+    state.rangeDays = (state.rangeEnd - state.rangeStart) / 86400000;
+    state.nextDayStart = end <= Date.now() ? end : start;
+    state.moreBlocked = end > Date.now();
+    $('scrubber').max = state.candles.length - 1;
+    const jumpValue = $('jumpDate').value;
+    refreshJumpTime();
+    $('jumpDate').value = jumpValue;
+    refreshTimeLabels();
+    $('progress').textContent = `Day ${Math.floor(current().minute / 1440) + 1} / ${state.rangeDays} | ${state.index + 1} / ${state.candles.length}`;
+    $('dataStatus').textContent = additions.length ? `Added ${additions.length} candles for ${new Date(start).toISOString().slice(0, 10)} (UTC)` : 'No candles for this day.';
+    if (state.moreBlocked) {
+      $('dataStatus').textContent += ' Latest available data reached; retry later.';
+      $('retryData').classList.remove('hidden');
+    }
+  } catch (error) {
+    if (requestId !== state.loadId) return;
+    state.moreBlocked = true;
+    $('dataStatus').textContent = `Next day unavailable: ${error.message}`;
+    $('retryData').classList.remove('hidden');
+  } finally {
+    if (requestId === state.loadId) state.loadingMore = false;
   }
 }
 
@@ -269,3 +340,5 @@ $('priceGrid').onchange=draw;
 $('leverage').onchange=update;
 $('positionsList').addEventListener('pointerdown',event=>{if(event.target.closest('[data-close-position]'))pauseReplay()});
 $('positionsList').addEventListener('click',event=>{const button=event.target.closest('[data-close-position]');if(!button)return;event.preventDefault();event.stopPropagation();closePosition(Number(button.dataset.closePosition))});
+
+$('retryData').onclick = loadNextDay;
