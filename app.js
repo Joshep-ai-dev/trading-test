@@ -225,8 +225,20 @@ function jumpToDate() {
 function zoom(delta){state.visibleCount=Math.max(15,Math.min(1500,state.visibleCount+delta));draw();}
 function priceZoom(factor){state.priceScale=Math.max(.25,Math.min(12,state.priceScale*factor));draw();}
 function candleAtPointer(event){if(!state.chartMeta||!state.candles.length)return null;const rect=chart.getBoundingClientRect(),right=rect.width-78,{start,end}=state.chartMeta;state.crosshairY=event.clientY-rect.top;const count=end-start+1,step=(right-12)/state.visibleCount,firstX=12+(state.visibleCount-count)*step;if(event.clientX-rect.left<firstX||event.clientX-rect.left>right)return null;return Math.max(start,Math.min(end,start+Math.floor((event.clientX-rect.left-firstX)/step)));}
-chart.addEventListener('wheel',e=>{e.preventDefault();const x=e.clientX-chart.getBoundingClientRect().left;if(x>chart.clientWidth-78)priceZoom(e.deltaY>0?.9:1.1);else zoom(e.deltaY<0?10:-10)},{passive:false});
-chart.addEventListener('mousemove',e=>{if(state.dragging&&state.chartMeta){const pixels=e.clientX-state.dragX,perCandle=(chart.clientWidth-90)/state.visibleCount;if(Math.abs(pixels)>=perCandle){state.viewOffset=Math.max(0,Math.min(state.chartMeta.bars.length-1,state.viewOffset+Math.round(-pixels/perCandle)));state.dragX=e.clientX;draw()}return}state.hoverIndex=candleAtPointer(e);const tip=$('chartTooltip');if(state.hoverIndex===null){tip.classList.add('hidden');draw();return}const c=state.chartMeta.bars[state.hoverIndex],rect=chart.getBoundingClientRect(),period=Number($('timeframe').value),range=period===1?timestampFor(c.minute):`${timestampFor(c.minute)} — ${timestampFor(c.endMinute)}`;tip.innerHTML=`<b>${range}</b><br><span>O</span> ${fmt(c.open)} &nbsp; <span>H</span> ${fmt(c.high)}<br><span>L</span> ${fmt(c.low)} &nbsp; <span>C</span> ${fmt(c.close)}`;tip.classList.remove('hidden');tip.style.left=`${Math.min(rect.width-220,Math.max(8,e.clientX-rect.left+14))}px`;tip.style.top=`${Math.max(8,e.clientY-rect.top-62)}px`;draw()});
+chart.addEventListener('wheel',e=>{e.preventDefault();const x=e.clientX-chart.getBoundingClientRect().left;if(x>chart.clientWidth-78)priceZoom(e.deltaY<0?.9:1.1);else zoom(e.deltaY<0?10:-10)},{passive:false});
+chart.addEventListener('mousemove',
+  e => {
+    if (state.dragging && state.chartMeta) {
+      const pixels =- e.clientX + state.dragX, perCandle = (chart.clientWidth - 90) / state.visibleCount;
+      if (Math.abs(pixels) >= perCandle) { state.viewOffset = Math.max(0, Math.min(state.chartMeta.bars.length - 1, state.viewOffset + Math.round(-pixels / perCandle))); state.dragX = e.clientX; draw() } return
+    }
+    state.hoverIndex = candleAtPointer(e);
+    const tip = $('chartTooltip');
+    if (state.hoverIndex === null) {
+      tip.classList.add('hidden'); draw(); return
+    }
+    const c = state.chartMeta.bars[state.hoverIndex], rect = chart.getBoundingClientRect(), period = Number($('timeframe').value), range = period === 1 ? timestampFor(c.minute) : `${timestampFor(c.minute)} — ${timestampFor(c.endMinute)}`; tip.innerHTML = `<b>${range}</b><br><span>O</span> ${fmt(c.open)} &nbsp; <span>H</span> ${fmt(c.high)}<br><span>L</span> ${fmt(c.low)} &nbsp; <span>C</span> ${fmt(c.close)}`; tip.classList.remove('hidden'); tip.style.left = `${Math.min(rect.width - 220, Math.max(8, e.clientX - rect.left + 14))}px`; tip.style.top = `${Math.max(8, e.clientY - rect.top - 62)}px`; draw()
+  });
 chart.addEventListener('mouseleave',()=>{state.hoverIndex=null;state.dragging=false;chart.classList.remove('dragging');$('chartTooltip').classList.add('hidden');draw()});
 chart.addEventListener('mousedown',e=>{if(!state.candles.length)return;const x=e.clientX-chart.getBoundingClientRect().left;if(x>chart.clientWidth-78){state.priceDragging=true;state.priceDragY=e.clientY}else{state.dragging=true;state.dragX=e.clientX}chart.classList.add('dragging')});
 chart.addEventListener('mousemove',e=>{if(!state.priceDragging)return;const dy=state.priceDragY-e.clientY;if(Math.abs(dy)>2){priceZoom(Math.exp(dy*.008));state.priceDragY=e.clientY}});
