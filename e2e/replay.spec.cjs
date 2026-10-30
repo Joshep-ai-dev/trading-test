@@ -137,3 +137,107 @@ test('position TP/SL and trailing stop can be edited, restored, and disabled', a
   await page.getByRole('tab', { name: /TP \/ SL/ }).click();
   await expect(page.locator('.ledger-content')).toContainText('No trigger orders');
 });
+
+test('indicator library adds studies and each study has its own settings', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  const resize = page.getByRole('separator', { name: 'Resize chart height', exact: true });
+  await resize.focus();
+  for (let i = 0; i < 15; i++) await page.keyboard.press('ArrowDown');
+  await page.getByRole('button', { name: 'Open indicator library', exact: true }).click();
+  const library = page.getByRole('dialog', { name: 'Indicator library', exact: true });
+  await expect(library.getByRole('spinbutton')).toHaveCount(0);
+  await library.getByRole('textbox', { name: 'Search indicators' }).fill('average true range');
+  await expect(library.locator('.library-study')).toHaveCount(1);
+  await library.getByRole('button', { name: 'Add ATR to chart', exact: true }).click();
+  await library.getByRole('textbox', { name: 'Search indicators' }).fill('');
+  for (const name of ['ADX', 'Supertrend', 'Bollinger Bands']) await library.getByRole('button', { name: `Add ${name} to chart`, exact: true }).click();
+  await page.screenshot({ path: 'test-results/indicator-library.png', fullPage: true });
+  await library.getByRole('button', { name: 'Configure RSI', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'RSI settings', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('spinbutton')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/rsi-individual-settings.png', fullPage: true });
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  const settings = [
+    ['RSI', [['RSI Length', '9']]],
+    ['MACD', [['MACD Fast length', '8'], ['MACD Slow length', '21'], ['MACD Signal length', '5']]],
+    ['ATR', [['ATR Length', '21']]],
+    ['ADX', [['ADX DI length', '10'], ['ADX ADX smoothing', '10']]],
+    ['Supertrend', [['Supertrend ATR length', '7'], ['Supertrend Factor', '2.5']]],
+    ['Bollinger Bands', [['Bollinger Bands Length', '30'], ['Bollinger Bands Standard deviations', '2.5']]],
+  ];
+  for (const [name, fields] of settings) {
+    await page.getByRole('button', { name: `${name} settings`, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: `${name} settings`, exact: true });
+    for (const [field, value] of fields) await dialog.getByRole('spinbutton', { name: field, exact: true }).fill(value);
+    await dialog.getByRole('button', { name: 'OK', exact: true }).click();
+  }
+  for (const name of ['RSI', 'MACD', 'ATR', 'ADX']) await expect(page.getByRole('separator', { name: `Resize ${name} height`, exact: true })).toBeVisible();
+  const atr = page.getByRole('separator', { name: 'Resize ATR height', exact: true });
+  const before = Number(await atr.getAttribute('aria-valuenow'));
+  await atr.focus(); await page.keyboard.press('ArrowUp');
+  await expect(atr).toHaveAttribute('aria-valuenow', String(before + 10));
+  await page.reload();
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect(atr).toHaveAttribute('aria-valuenow', String(before + 10));
+  await page.getByRole('button', { name: 'ATR settings', exact: true }).click();
+  await expect(page.getByRole('spinbutton', { name: 'ATR Length', exact: true })).toHaveValue('21');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('button', { name: 'MACD settings', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'MACD Fast length', exact: true }).fill('50');
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Fast length');
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  expect(errors).toEqual([]);
+});
+
+test('indicator windows support per-study settings, style, ordering, maximize, hide and remove', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await page.getByRole('button', { name: 'RSI settings', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'RSI settings', exact: true });
+  await dialog.getByRole('spinbutton', { name: 'RSI Length', exact: true }).fill('21');
+  const box = await dialog.boundingBox();
+  await page.mouse.move(box.x + 100, box.y + 25);
+  await page.mouse.down(); await page.mouse.move(box.x + 140, box.y + 45, { steps: 5 }); await page.mouse.up();
+  await expect.poll(async () => Math.round((await dialog.boundingBox()).x - box.x)).toBe(40);
+  await dialog.getByRole('tab', { name: 'Style', exact: true }).click();
+  await dialog.getByLabel('Line color', { exact: true }).fill('#ff7700');
+  await dialog.getByLabel('Line thickness', { exact: true }).selectOption('3');
+  await dialog.getByRole('checkbox', { name: 'Values in indicator header', exact: true }).uncheck();
+  await dialog.getByRole('tab', { name: 'Visibility', exact: true }).click();
+  await dialog.getByRole('checkbox', { name: 'Show indicator', exact: true }).uncheck();
+  await page.screenshot({ path: 'test-results/indicator-settings-window.png', fullPage: true });
+  await dialog.getByRole('button', { name: 'OK', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Show RSI', exact: true })).toHaveCount(1);
+  await page.getByRole('button', { name: 'Show RSI', exact: true }).click();
+  await page.getByRole('button', { name: 'Move RSI down', exact: true }).click();
+  await expect.poll(() => page.locator('.study-pane-name strong').allTextContents()).toEqual(['MACD', 'RSI']);
+  await page.getByRole('button', { name: 'Maximize RSI', exact: true }).click();
+  await expect(page.locator('.study-pane-header')).toHaveCount(1);
+  await expect(page.getByRole('button', { name: 'Restore RSI', exact: true })).toHaveCount(1);
+  const canvas = await page.locator('#chart').boundingBox();
+  await page.mouse.move(canvas.x + 200, canvas.y + 120); await page.mouse.wheel(0, -50);
+  await page.screenshot({ path: 'test-results/indicator-maximized.png', fullPage: true });
+  await page.getByRole('button', { name: 'Restore RSI', exact: true }).click();
+  await expect(page.locator('.study-pane-header')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Remove RSI', exact: true }).click();
+  await expect(page.locator('.study-pane-header')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Open indicator library', exact: true }).click();
+  await page.getByRole('button', { name: 'Add RSI to chart', exact: true }).click();
+  await page.getByRole('button', { name: 'Close indicator library', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect.poll(() => page.locator('.study-pane-name strong').allTextContents()).toEqual(['MACD', 'RSI']);
+  await page.getByRole('button', { name: 'RSI settings', exact: true }).click();
+  await dialog.getByRole('spinbutton', { name: 'RSI Length', exact: true }).fill('21');
+  await dialog.getByRole('tab', { name: 'Style', exact: true }).click();
+  await expect(dialog.getByLabel('Line color', { exact: true })).toHaveValue('#ff7700');
+  await expect(dialog.getByLabel('Line thickness', { exact: true })).toHaveValue('3');
+  await expect(dialog.getByRole('checkbox', { name: 'Values in indicator header', exact: true })).not.toBeChecked();
+  expect(errors).toEqual([]);
+});

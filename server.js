@@ -11,7 +11,7 @@ const { listenAvailable } = require('./lib/listen');
 const archive = createArchive({ directory: path.join(root, '.candle-data'), loadCandles });
 async function start() {
   const production = process.argv.includes('--production');
-  const vite = production ? null : await (await import('vite')).createServer({ server: { middlewareMode: true }, appType: 'spa' });
+  let vite = null;
   const staticRoot = production ? path.join(root, 'dist') : root;
 
   const server = http.createServer(async (req, res) => {
@@ -69,6 +69,12 @@ async function start() {
       res.end(data);
     });
   });
+  if (!production) {
+    vite = await (await import('vite')).createServer({
+      server: { middlewareMode: true, ws: { server } },
+      appType: 'spa',
+    });
+  }
   let syncTimer;
   async function shutdown() {
     clearInterval(syncTimer);

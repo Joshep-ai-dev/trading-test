@@ -125,3 +125,38 @@ tighter fixed/trailing stop takes precedence, and stops take precedence over TP
 when both are touched in one candle (liquidation retains priority). Gaps through a
 stop fill at the adverse opening price. Exits record their reason and both trading
 fees. Clear fields to disable protection.
+
+## Indicator studies
+
+Click **Indicators** above the chart to search and add individual studies:
+RSI (length), MACD (fast/slow/signal lengths), ATR (length), ADX (DI length and ADX
+smoothing), Supertrend (ATR length and factor), and Bollinger Bands (length and
+standard-deviation multiplier). The eye icon toggles the complete study set.
+Use each study's visible gear icon (or the library's Settings button) for its own Inputs, Style and Visibility window. There is no combined parameter form. Settings persist in the browser. Invalid parameters are rejected; MACD's fast
+length must be shorter than its slow length.
+
+ATR and ADX have separate resizable panes alongside RSI and MACD. ADX also displays
++DI and -DI. Supertrend and BB overlay the price chart. BB uses a close-price SMA
+and population standard deviation; ATR and ADX use Wilder RMA smoothing. EMA-based
+MACD uses an SMA seed. Values remain unavailable until the warm-up period completes.
+Calculations use aggregated candles only up to the replay cursor. Loading more
+historical candles supplies additional warm-up history; no future replay data is used.
+The chart reserves a minimum readable space for enabled panes, so enabling more
+studies can increase its minimum height.
+
+Formula references: [ATR](https://www.tradingview.com/support/solutions/43000501823-average-true-range-atr/),
+[ADX](https://www.tradingview.com/support/solutions/43000589099-average-directional-index-adx/),
+[Supertrend](https://www.tradingview.com/support/solutions/43000634738-supertrend/),
+[Bollinger Bands](https://www.tradingview.com/support/solutions/43000501840-bollinger-bands-bb/).
+
+### Indicator windows and individual settings
+
+Hover an indicator header for its Settings, Hide/Show, Move up/down, Maximize/Restore,
+and Remove controls. Price overlays have Settings, Hide/Show and Remove controls.
+Double-click a study name to open its own movable settings window. Drag that window
+by its title bar. Its tabs separate **Inputs**, **Style** (primary line color,
+thickness, header values), and **Visibility**. OK applies changes; Cancel discards
+changes; Defaults resets that study's draft. Settings and pane order persist in the
+browser. Hide retains pane space, while Remove closes the pane; use **Indicators**
+to add a removed study again. Maximizing a study temporarily uses the entire chart
+canvas, and Restore brings back the original panes and their sizes.

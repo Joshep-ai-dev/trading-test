@@ -1,3 +1,5 @@
+import { DEFAULT_INDICATORS, INDICATOR_DEFINITIONS, calculateIndicators, indicatorLayout } from './indicators.js';
+import { drawIndicatorPanes, drawPriceIndicators } from './indicator-renderer.js';
 import '../chart-utils.js';
 const { priceTicks, timeStep, seekIndex, zonedTime, chartWindow, zoomWindow } = globalThis.ChartUtils;
 
@@ -31,44 +33,45 @@ function chartBars() {
 function fmt(n, d=2){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); }
 function current(){ return state.candles[state.index]; }
 function timestampFor(i){ const date=zonedTime(state.rangeStart+i*60000,options.timeZone);return `${date.value.replace('T',' ')} ${date.name}`; }
-function ema(values,period){const result=Array(values.length).fill(null),k=2/(period+1);if(!values.length)return result;let value=values[0];result[0]=value;for(let i=1;i<values.length;i++){value=values[i]*k+value*(1-k);result[i]=value}return result}
-function rsi(values,period=14){const result=Array(values.length).fill(null);if(values.length<=period)return result;let gain=0,loss=0;for(let i=1;i<=period;i++){const change=values[i]-values[i-1];gain+=Math.max(0,change);loss+=Math.max(0,-change)}gain/=period;loss/=period;result[period]=loss===0?100:100-100/(1+gain/loss);for(let i=period+1;i<values.length;i++){const change=values[i]-values[i-1];gain=(gain*(period-1)+Math.max(0,change))/period;loss=(loss*(period-1)+Math.max(0,-change))/period;result[i]=loss===0?100:100-100/(1+gain/loss)}return result}
-function macd(values){const fast=ema(values,12),slow=ema(values,26),line=values.map((_,i)=>fast[i]-slow[i]),signal=ema(line,9),histogram=line.map((v,i)=>v-signal[i]);return {line,signal,histogram}}
 function draw(){
   const w=chart.clientWidth,h=chart.clientHeight; ctx.clearRect(0,0,w,h); if(!state.candles.length)return;
   const bars = chartBars(), view = chartWindow(bars.length, state.visibleCount, state.viewOffset);
   state.viewOffset = view.offset;
   const { start, end } = view, count = end - start + 1, data = bars.slice(start, end + 1);
   if (!data.length) return;
-  if (indicatorCache.bars !== bars) {
-    const closes = bars.map(b => b.close);
-    indicatorCache = { bars, rsiData: rsi(closes), macdData: macd(closes) };
-  }
-  const { rsiData, macdData } = indicatorCache;
-  const paneBudget = Math.max(80, h - 240);
-  let rsiHeight = Math.max(40, Math.min(500, options.paneHeights?.rsi || 70));
-  let macdHeight = Math.max(40, Math.min(500, options.paneHeights?.macd || 100));
-  if (rsiHeight + macdHeight > paneBudget) {
-    const scale = (paneBudget - 80) / (rsiHeight + macdHeight - 80 || 1);
-    rsiHeight = 40 + (rsiHeight - 40) * scale;
-    macdHeight = 40 + (macdHeight - 40) * scale;
-  }
-  const top = 30, bottom = state.indicators ? h - 90 - rsiHeight - macdHeight : h - 54, left = 12, right = w - 78;
-  const volumeTop = bottom - 42, volumeBottom = bottom, rsiTop = bottom + 18, rsiBottom = rsiTop + rsiHeight, macdTop = rsiBottom + 18, macdBottom = state.indicators ? h - 54 : bottom;
-  options.onPaneLayout?.({ rsi: rsiHeight, macd: macdHeight, rsiDivider: bottom + 9, macdDivider: rsiBottom + 9, budget: paneBudget });
-  const rawMax = Math.max(...data.map(c => c.high)), rawMin = Math.min(...data.map(c => c.low));
+  const config = options.indicatorConfig || DEFAULT_INDICATORS;
+  const configKey = JSON.stringify(config);
+  if (indicatorCache.bars !== bars || indicatorCache.key !== configKey) indicatorCache = { bars, key: configKey, data: calculateIndicators(bars, config) };
+  const indicators = state.indicators ? indicatorCache.data : {};
+  let layout = indicatorLayout(h, config, options.paneHeights, state.indicators, options.paneOrder);
+  const maximized = state.indicators && layout.panes.find(pane => pane.key === options.maximizedPane);
+  if (maximized) layout = { bottom: 30, minimum: 40, budget: h - 84, panes: [{ ...maximized, top: 30, bottom: h - 54, divider: 30, height: h - 84 }], [maximized.key]: h - 84 };
+  const header = key => {
+    const definition = INDICATOR_DEFINITIONS[key], settings = config[key];
+    const series = key === 'macd' || key === 'adx' ? indicators[key]?.line : key === 'bb' ? indicators.bb?.basis : key === 'supertrend' ? indicators.supertrend?.line : indicators[key];
+    const value = series?.[state.hoverIndex ?? bars.length - 1];
+    return { key, name: definition.name, parameters: Object.keys(definition.fields).map(field => settings[field]).join(' '), value: settings.showValue && !settings.hidden ? Number.isFinite(value) ? value.toFixed(4) : 'Warming up' : '', hidden: settings.hidden };
+  };
+  layout.panes = layout.panes.map(pane => ({ ...pane, ...header(pane.key) }));
+  layout.overlays = state.indicators && !maximized ? Object.keys(INDICATOR_DEFINITIONS).filter(key => !INDICATOR_DEFINITIONS[key].pane && config[key].enabled).map(header) : [];
+  layout.maximized = maximized?.key || null;
+  const top = 30, bottom = layout.bottom, left = 12, right = w - 78;
+  const volumeTop = bottom - 42, volumeBottom = bottom, macdBottom = h - 54;
+  options.onPaneLayout?.(layout);
+  const overlayPrices = [!config.bb.hidden && indicators.bb?.upper, !config.bb.hidden && indicators.bb?.lower, !config.supertrend.hidden && indicators.supertrend?.line].filter(Boolean).flatMap(series => series.slice(start, end + 1).filter(Number.isFinite));
+  const rawMax = Math.max(...data.map(c => c.high), ...overlayPrices), rawMin = Math.min(...data.map(c => c.low), ...overlayPrices);
   const baseRange = (rawMax - rawMin) || Math.max(rawMax * .001, .01), center = (rawMax + rawMin) / 2;
   const range = state.manualPrice ? state.manualPrice.max - state.manualPrice.min : baseRange * 1.12 / state.priceScale;
   const max = state.manualPrice ? state.manualPrice.max : center + range / 2, min = max - range;
   const y = p => top + (max - p) / range * (bottom - top), step = (right - left) / state.visibleCount;
   const xFor = i => left + (start + i - view.first + .5) * step;
-  state.chartMeta = { bars, start, end, rsiData, macdData, top, bottom, left, right, min, max, range, step, first: view.first, y, xFor };
+  state.chartMeta = { bars, start, end, hoverIndex: state.hoverIndex, windowHeaders: true, top, bottom, left, right, min, max, range, step, first: view.first, y, xFor };
   options.onView?.({ offset: state.viewOffset, visibleCount: state.visibleCount });
   if (view.first < 20) options.onNeedEarlier?.();
   const quote = state.hoverIndex === null ? bars.at(-1) : bars[state.hoverIndex] || bars.at(-1);
   options.onHover?.(quote);
   ctx.font=`12px ${fontFamily}`;ctx.textAlign='left';ctx.setLineDash([2,4]);
-  for (const tick of priceTicks(min, max, bottom-top, Number(options.priceGrid || 0))) {
+  if (!maximized) for (const tick of priceTicks(min, max, bottom-top, Number(options.priceGrid || 0))) {
     const yy = y(tick.price);
     ctx.strokeStyle = '#1b2c32';ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();
     if (tick.label) { ctx.fillStyle='#aeb8c4';ctx.fillText(fmt(tick.price),right+8,yy+4); }
@@ -96,21 +99,34 @@ function draw(){
   });
   ctx.fillStyle='#96a4b4';ctx.fillText(zonedTime(data[data.length-1].timestamp,options.timeZone).name,right+4,h-16);
   ctx.setLineDash([]);
+  if (!maximized) {
   ctx.save();ctx.beginPath();ctx.rect(left,top,right-left,bottom-top);ctx.clip();
   const maxVolume=Math.max(1,...data.map(c=>c.volume));
   data.forEach((c,i)=>{const x=xFor(i), up=c.close>=c.open,col=up?'#64d6b1':'#ee8595';ctx.strokeStyle=col;ctx.fillStyle=col;ctx.beginPath();ctx.moveTo(x,y(c.high));ctx.lineTo(x,y(c.low));ctx.stroke();const bw=Math.max(2,step*.62),yt=y(Math.max(c.open,c.close)),bh=Math.max(1,Math.abs(y(c.open)-y(c.close)));ctx.fillRect(x-bw/2,yt,bw,bh);const vh=(c.volume/maxVolume)*(volumeBottom-volumeTop);ctx.globalAlpha=.27;ctx.fillRect(x-bw/2,volumeBottom-vh,bw,vh);ctx.globalAlpha=1});
   ctx.restore();
-  if (state.indicators) {
-  ctx.font=`10px ${fontFamily}`;ctx.fillStyle='#8c72d9';ctx.fillText('RSI 14',left+4,rsiTop+10);[30,50,70].forEach(level=>{const yy=rsiBottom-(level/100)*(rsiBottom-rsiTop);ctx.strokeStyle=level===50?'#252a30':'#34303d';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(right,yy);ctx.stroke();ctx.fillStyle='#626a74';ctx.fillText(String(level),right+8,yy+3)});ctx.setLineDash([]);ctx.strokeStyle='#9b7bea';ctx.beginPath();let rsiStarted=false;for(let i=0;i<count;i++){const value=rsiData[start+i];if(value===null)continue;const xx=xFor(i),yy=rsiBottom-(value/100)*(rsiBottom-rsiTop);if(!rsiStarted){ctx.moveTo(xx,yy);rsiStarted=true}else ctx.lineTo(xx,yy)}ctx.stroke();
-  const visibleMacd=macdData.line.slice(start,end+1).concat(macdData.signal.slice(start,end+1),macdData.histogram.slice(start,end+1)),macdMax=Math.max(...visibleMacd.map(Math.abs),.0001),macdZero=(macdTop+macdBottom)/2,macdY=value=>macdZero-value/macdMax*(macdBottom-macdTop)*.45;ctx.fillStyle='#65a5dd';ctx.fillText('MACD 12 26 9',left+4,macdTop+10);ctx.strokeStyle='#2b3036';ctx.beginPath();ctx.moveTo(left,macdZero);ctx.lineTo(right,macdZero);ctx.stroke();for(let i=0;i<count;i++){const value=macdData.histogram[start+i],xx=xFor(i),yy=macdY(value);ctx.fillStyle=value>=0?'#64d6b166':'#ee859566';ctx.fillRect(xx-Math.max(1,step*.3),Math.min(macdZero,yy),Math.max(2,step*.6),Math.abs(yy-macdZero))}[[macdData.line,'#4da3e6'],[macdData.signal,'#e6a84d']].forEach(([series,color])=>{ctx.strokeStyle=color;ctx.beginPath();let begun=false;for(let i=0;i<count;i++){const value=series[start+i];if(value===null)continue;const xx=xFor(i),yy=macdY(value);if(!begun){ctx.moveTo(xx,yy);begun=true}else ctx.lineTo(xx,yy)}ctx.stroke()});ctx.fillStyle='#626a74';ctx.fillText(macdMax.toFixed(3),right+8,macdTop+9);ctx.fillText((-macdMax).toFixed(3),right+8,macdBottom);
+  drawPriceIndicators(ctx, indicators, config, state.chartMeta, fontFamily);
   }
+  if (state.indicators) drawIndicatorPanes(ctx, indicators, config, layout, state.chartMeta, fontFamily);
+  if (!maximized) {
   const last=bars.at(-1), ly=y(last.close);if(ly>=top&&ly<=bottom){ctx.strokeStyle='#81dfc2';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(left,ly);ctx.lineTo(right,ly);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#81dfc2';ctx.fillRect(right,ly-11,76,22);ctx.fillStyle='#0d2821';ctx.font=`bold 12px ${fontFamily}`;ctx.fillText(fmt(last.close),right+5,ly+4);}
   state.positions.forEach(p=>{const ey=y(p.entry);if(ey>=top&&ey<=bottom){ctx.strokeStyle=p.side==='LONG'?'#64d6b1':'#ee8595';ctx.setLineDash([7,4]);ctx.beginPath();ctx.moveTo(left,ey);ctx.lineTo(right,ey);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=ctx.strokeStyle;ctx.fillText(`#${p.id} ${p.side} ${fmt(p.entry)}`,left+5,ey-5)}});
 
   drawProtectionLines();
   drawExecutions();
   drawAnnotations();
-  if(state.hoverIndex!==null&&state.hoverIndex>=start&&state.hoverIndex<=end){const x=xFor(state.hoverIndex-start),hc=bars[state.hoverIndex],hy=Math.max(top,Math.min(bottom,state.crosshairY||y(hc.close)));ctx.strokeStyle='#7d858e';ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,macdBottom);ctx.moveTo(left,hy);ctx.lineTo(right,hy);ctx.stroke();ctx.setLineDash([]);const pointerPrice=max-(hy-top)/(bottom-top)*range;ctx.fillStyle='#454c54';ctx.fillRect(right,hy-11,76,22);ctx.fillStyle='#f0f2f4';ctx.font=`12px ${fontFamily}`;ctx.fillText(fmt(pointerPrice),right+5,hy+4);const label=timestampFor(hc.minute).slice(5,16)+' '+zonedTime(state.rangeStart+hc.minute*60000,options.timeZone).name;ctx.textAlign='center';const tw=Math.max(58,ctx.measureText(label).width+16);ctx.fillStyle='#454c54';const labelX=Math.max(left+tw/2,Math.min(right-tw/2,x));ctx.fillRect(labelX-tw/2,h-47,tw,36);ctx.fillStyle='#f0f2f4';ctx.fillText(label,labelX,h-25);ctx.textAlign='left'}
+  }
+  if (state.hoverIndex !== null && state.hoverIndex >= start && state.hoverIndex <= end) {
+    const x = xFor(state.hoverIndex - start), hc = bars[state.hoverIndex];
+    const hy = Math.max(top, Math.min(maximized ? macdBottom : bottom, state.crosshairY ?? y(hc.close)));
+    ctx.strokeStyle = '#7d858e'; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, macdBottom); ctx.moveTo(left, hy); ctx.lineTo(right, hy); ctx.stroke(); ctx.setLineDash([]);
+    if (!maximized) {
+      const pointerPrice = max - (hy - top) / (bottom - top) * range;
+      ctx.fillStyle = '#454c54'; ctx.fillRect(right, hy - 11, 76, 22); ctx.fillStyle = '#f0f2f4'; ctx.font = `12px ${fontFamily}`; ctx.fillText(fmt(pointerPrice), right + 5, hy + 4);
+    }
+    const label = timestampFor(hc.minute).slice(5, 16) + ' ' + zonedTime(state.rangeStart + hc.minute * 60000, options.timeZone).name;
+    ctx.textAlign = 'center'; const width = Math.max(58, ctx.measureText(label).width + 16), labelX = Math.max(left + width / 2, Math.min(right - width / 2, x));
+    ctx.fillStyle = '#454c54'; ctx.fillRect(labelX - width / 2, h - 47, width, 36); ctx.fillStyle = '#f0f2f4'; ctx.fillText(label, labelX, h - 25); ctx.textAlign = 'left';
+  }
 }
 function zoom(delta, fraction = .5) {
   if (!state.chartMeta) return;
@@ -254,7 +270,7 @@ function initializeChartInteractions() {
     if (!state.chartMeta) return;
     event.preventDefault();
     const p = pointerPosition(event), m = state.chartMeta;
-    if (p.x > m.right) priceZoom(Math.exp(-event.deltaY * .002), Math.max(0, Math.min(1, (p.y - m.top) / (m.bottom - m.top))));
+    if (p.x > m.right && !options.maximizedPane) priceZoom(Math.exp(-event.deltaY * .002), Math.max(0, Math.min(1, (p.y - m.top) / (m.bottom - m.top))));
     else if (event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) {
       state.viewOffset += (event.deltaX || event.deltaY) / m.step; draw();
     } else {
@@ -267,7 +283,7 @@ function initializeChartInteractions() {
     const p = pointerPosition(event), m = state.chartMeta;
     chart.focus({ preventScroll: true });
     if (p.x < m.right && p.y < m.bottom && state.tool !== 'cursor') { drawingClick(event); return; }
-    const mode = p.x >= m.right ? 'price' : p.y > chart.clientHeight - 50 ? 'time' : 'pan';
+    const mode = options.maximizedPane ? 'pan' : p.x >= m.right ? 'price' : p.y > chart.clientHeight - 50 ? 'time' : 'pan';
     gesture = { mode, x: p.x, y: p.y, offset: state.viewOffset, count: state.visibleCount, step: m.step, min: m.min, max: m.max, range: m.range, height: m.bottom - m.top };
     state.hoverIndex = null;
     chart.setPointerCapture(event.pointerId);
@@ -286,7 +302,7 @@ function initializeChartInteractions() {
         state.visibleCount = view.visibleCount; state.viewOffset = view.offset;
       } else {
         state.viewOffset = gesture.offset + dx / gesture.step;
-        if (Math.abs(dy) > 3) state.manualPrice = { min: gesture.min + dy / gesture.height * gesture.range, max: gesture.max + dy / gesture.height * gesture.range };
+        if (gesture.height > 1 && Math.abs(dy) > 3) state.manualPrice = { min: gesture.min + dy / gesture.height * gesture.range, max: gesture.max + dy / gesture.height * gesture.range };
       }
       draw(); return;
     }

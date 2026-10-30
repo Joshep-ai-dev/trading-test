@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useReplay } from './useReplay.js';
+import IndicatorLibrary from './IndicatorLibrary.jsx';
+import StudySettings from './StudySettings.jsx';
+import { readIndicatorSettings, INDICATOR_DEFINITIONS } from './indicators.js';
 import { createChartController } from './chart-controller.js';
 import { ExchangeHeader, MarketStrip, OrderTicket, TradingLedger, AccountSummary } from './TradingPanels.jsx';
 
@@ -8,19 +11,33 @@ const frames = [[1, '1m'], [5, '5m'], [10, '10m'], [15, '15m'], [30, '30m'], [60
 const tools = [['cursor', '＋', 'Crosshair / Pan (Esc)'], ['trend', '╱', 'Trend line: click two points'], ['horizontal', '―', 'Horizontal line'], ['measure', '↔', 'Measure: click two points'], ['text', 'T', 'Add text'], ['zoom', '⌕', 'Zoom at pointer'], ['delete', '⌫', 'Delete all drawings']];
 const { zonedTime, zonedCandidates, seekIndex } = globalThis.ChartUtils;
 
+function StudyWindowHeader({ study, top, maximized, overlay, onAction }) {
+  return <div className={`study-pane-header${study.hidden ? ' study-hidden' : ''}${overlay ? ' overlay-study-header' : ''}`} style={{ top }}>
+    <button className="study-pane-name" title="Double-click to open settings" onDoubleClick={() => onAction(study.key, 'settings')}><strong>{study.name}</strong><span>{study.parameters}</span>{study.value && <b>{study.value}</b>}</button>
+    <div className="study-pane-controls">
+      <button title="Indicator settings" aria-label={`${study.name} settings`} onClick={() => onAction(study.key, 'settings')}>⚙</button>
+      <button title={study.hidden ? 'Show indicator' : 'Hide indicator'} aria-label={`${study.hidden ? 'Show' : 'Hide'} ${study.name}`} onClick={() => onAction(study.key, 'hide')}>{study.hidden ? '◌' : '◉'}</button>
+      {!overlay && <><button className="study-move" aria-label={`Move ${study.name} up`} onClick={() => onAction(study.key, 'up')}>↑</button><button className="study-move" aria-label={`Move ${study.name} down`} onClick={() => onAction(study.key, 'down')}>↓</button><button title={maximized ? 'Restore pane' : 'Maximize pane'} aria-label={`${maximized ? 'Restore' : 'Maximize'} ${study.name}`} onClick={() => onAction(study.key, 'maximize')}>{maximized ? '▣' : '□'}</button></>}
+      <button title="Remove indicator" aria-label={`Remove ${study.name}`} onClick={() => onAction(study.key, 'remove')}>×</button>
+    </div>
+  </div>;
+}
+
 function CandleCanvas({ model, options, controller, onNeedEarlier, onHover }) {
   const canvas = useRef(null);
   const paneDrag = useRef(null);
   const [paneHeights, setPaneHeights] = useState(() => {
-    try { const value = JSON.parse(localStorage.getItem('argent-indicator-heights')); if (Number.isFinite(value?.rsi) && Number.isFinite(value?.macd)) return { rsi: Math.max(40, Math.min(500, value.rsi)), macd: Math.max(40, Math.min(500, value.macd)) }; } catch {}
-    return { rsi: 70, macd: 100 };
+    const defaults = { rsi: 70, macd: 100, atr: 70, adx: 70 };
+    try { const saved = JSON.parse(localStorage.getItem('argent-indicator-heights')); for (const key of Object.keys(defaults)) if (Number.isFinite(saved?.[key])) defaults[key] = Math.max(40, Math.min(500, saved[key])); } catch {}
+    return defaults;
   });
   const [layout, setLayout] = useState(null);
-  const onPaneLayout = useCallback(next => setLayout(previous => previous?.rsi === next.rsi && previous?.macd === next.macd && previous?.budget === next.budget && previous?.rsiDivider === next.rsiDivider ? previous : next), []);
+  const onPaneLayout = useCallback(next => setLayout(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next), []);
   const resizePane = (pane, value) => {
     if (!layout) return;
-    const other = pane === 'rsi' ? 'macd' : 'rsi';
-    const next = { rsi: layout.rsi, macd: layout.macd, [pane]: Math.max(40, Math.min(500, layout.budget - layout[other], Math.round(value))) };
+    const others = layout.panes.filter(item => item.key !== pane).reduce((sum, item) => sum + item.height, 0);
+    const active = Object.fromEntries(layout.panes.map(item => [item.key, item.height]));
+    const next = { ...paneHeights, ...active, [pane]: Math.max(layout.minimum, Math.min(500, layout.budget - others, Math.round(value))) };
     setPaneHeights(next);
     try { localStorage.setItem('argent-indicator-heights', JSON.stringify(next)); } catch {}
   };
@@ -37,7 +54,8 @@ function CandleCanvas({ model, options, controller, onNeedEarlier, onHover }) {
   }, [model, options, paneHeights, onPaneLayout, controller, onNeedEarlier, onHover, requestText]);
   return <>
     <canvas id="chart" ref={canvas} tabIndex={0} aria-label="Candlestick chart. Drag to pan, scroll to zoom. Hover to inspect candle values. Drag axes to scale."/>
-    {model.indicators && model.candles.length > 0 && layout && ['rsi', 'macd'].map(pane => <div key={pane} className="indicator-height-handle" style={{ top: layout[`${pane}Divider`] }} role="separator" aria-label={`Resize ${pane.toUpperCase()} height`} aria-orientation="horizontal" aria-valuemin={40} aria-valuemax={Math.min(500, layout.budget - layout[pane === 'rsi' ? 'macd' : 'rsi'])} aria-valuenow={Math.round(layout[pane])} tabIndex={0} title={`Drag to resize ${pane.toUpperCase()}. Double-click to reset.`}
+    {model.indicators && model.candles.length > 0 && layout && <>{layout.panes.map(pane => <StudyWindowHeader key={pane.key} study={pane} top={pane.top - 1} maximized={layout.maximized === pane.key} onAction={options.onStudyAction}/>)}{layout.overlays?.map((study, index) => <StudyWindowHeader key={study.key} study={study} top={30 + index * 24} overlay onAction={options.onStudyAction}/>)}</>}
+    {model.indicators && model.candles.length > 0 && layout && !layout.maximized && layout.panes.map(({ key: pane, divider }) => <div key={pane} className="indicator-height-handle" style={{ top: divider }} role="separator" aria-label={`Resize ${pane.toUpperCase()} height`} aria-orientation="horizontal" aria-valuemin={layout.minimum} aria-valuemax={Math.min(500, layout.budget - layout.panes.filter(item => item.key !== pane).reduce((sum, item) => sum + item.height, 0))} aria-valuenow={Math.round(layout[pane])} tabIndex={0} title={`Drag to resize ${pane.toUpperCase()}. Double-click to reset.`}
       onPointerDown={event => { if (event.button !== 0) return; event.preventDefault(); paneDrag.current = { pane, y: event.clientY, height: layout[pane] }; event.currentTarget.setPointerCapture(event.pointerId); }}
       onPointerMove={event => { if (paneDrag.current?.pane === pane) resizePane(pane, paneDrag.current.height - (event.clientY - paneDrag.current.y)); }}
       onPointerUp={stopPaneDrag} onPointerCancel={stopPaneDrag} onLostPointerCapture={() => { paneDrag.current = null; }}
@@ -46,7 +64,7 @@ function CandleCanvas({ model, options, controller, onNeedEarlier, onHover }) {
     {annotation && <input autoFocus className="drawing-text" aria-label="Chart annotation" maxLength={120} placeholder="Type note, Enter to save" value={annotation.text}
       style={{ left: Math.min(canvas.current.clientWidth - 170, annotation.position.x) + 44, top: annotation.position.y }}
       onChange={event => setAnnotation({ ...annotation, text: event.target.value })}
-      onKeyDown={event => { if (event.key === 'Enter' || event.key === 'Escape') { if (event.key === 'Enter') controller.current.addText(annotation.point, annotation.text); setAnnotation(null); canvas.current.focus(); } }}/>} 
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === 'Escape') { if (event.key === 'Enter') controller.current.addText(annotation.point, annotation.text); setAnnotation(null); canvas.current.focus(); } }}/>}
   </>;
 }
 
@@ -54,13 +72,32 @@ function ChartPanel({ replay }) {
   const { model, date, dates } = replay;
   const controller = useRef(null);
   const [timeframe, setTimeframe] = useState(1), [indicators, setIndicators] = useState(true), [tool, setTool] = useState('cursor');
+  const [indicatorConfig, setIndicatorConfig] = useState(readIndicatorSettings), [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
+  const [activeStudy, setActiveStudy] = useState(null), [maximizedPane, setMaximizedPane] = useState(null);
+  const [paneOrder, setPaneOrder] = useState(() => {
+    try { const saved = JSON.parse(localStorage.getItem('argent-pane-order')); if (Array.isArray(saved)) return [...new Set([...saved.filter(key => INDICATOR_DEFINITIONS[key]?.pane), 'rsi', 'macd', 'atr', 'adx'])]; } catch {}
+    return ['rsi', 'macd', 'atr', 'adx'];
+  });
+  const onStudyAction = useCallback((key, action) => {
+    if (action === 'settings') setActiveStudy(key);
+    if (action === 'hide') setIndicatorConfig(previous => ({ ...previous, [key]: { ...previous[key], hidden: !previous[key].hidden } }));
+    if (action === 'remove') { setIndicatorConfig(previous => ({ ...previous, [key]: { ...previous[key], enabled: false } })); setMaximizedPane(previous => previous === key ? null : previous); }
+    if (action === 'maximize') setMaximizedPane(previous => previous === key ? null : key);
+    if (action === 'up' || action === 'down') setPaneOrder(previous => {
+      const next = [...previous], active = previous.filter(item => indicatorConfig[item].enabled), current = active.indexOf(key), target = current + (action === 'up' ? -1 : 1);
+      if (target >= 0 && target < active.length) { const a = next.indexOf(key), b = next.indexOf(active[target]); [next[a], next[b]] = [next[b], next[a]]; }
+      return next;
+    });
+  }, [indicatorConfig]);
+  useEffect(() => { try { localStorage.setItem('argent-indicator-settings', JSON.stringify(indicatorConfig)); } catch {} if (maximizedPane && !indicatorConfig[maximizedPane].enabled) setMaximizedPane(null); }, [indicatorConfig, maximizedPane]);
+  useEffect(() => { try { localStorage.setItem('argent-pane-order', JSON.stringify(paneOrder)); } catch {} }, [paneOrder]);
   const [zone, setZone] = useState(() => { try { return localStorage.getItem('argent-time-zone') || 'UTC'; } catch { return 'UTC'; } });
   const [timeGrid, setTimeGrid] = useState(0), [priceGrid, setPriceGrid] = useState(0), [jump, setJump] = useState('');
   const [hover, setHover] = useState(null), [view, setView] = useState({ offset: 0, visibleCount: 120 });
   const [syncStatus, setSyncStatus] = useState('');
   const onHover = useCallback(candle => setHover(previous => previous?.timestamp === candle.timestamp && previous?.close === candle.close && previous?.high === candle.high && previous?.low === candle.low ? previous : candle), []);
   const onView = useCallback(next => setView(previous => previous.offset === next.offset && previous.visibleCount === next.visibleCount ? previous : next), []);
-  const options = useMemo(() => ({ timeframe, timeZone: zone, timeGrid, priceGrid, onView, onToolChange: setTool }), [timeframe, zone, timeGrid, priceGrid, onView]);
+  const options = useMemo(() => ({ timeframe, timeZone: zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView, onToolChange: setTool }), [timeframe, zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView]);
   const chartModel = useMemo(() => ({ ...model, indicators }), [model, indicators]);
   const current = model.candles[model.index], quote = hover || current;
   const stamp = current ? zonedTime(current.timestamp, zone).value.replace('T', ' ') : '—';
@@ -73,7 +110,9 @@ function ChartPanel({ replay }) {
     if (index < 0) { setSyncStatus('Choose a valid time within the loaded local candles.'); return; }
     replay.seek(index);
   };
-  return <section className="chart-panel">
+  return <section className="chart-panel" style={{ '--min-chart-height': `${400 + (indicators ? Object.keys(INDICATOR_DEFINITIONS).filter(key => INDICATOR_DEFINITIONS[key].pane && indicatorConfig[key].enabled).length : 0) * 58}px` }}>
+    {activeStudy && <StudySettings key={activeStudy} study={activeStudy} config={indicatorConfig} onCancel={() => setActiveStudy(null)} onApply={config => { setIndicatorConfig(config); setActiveStudy(null); }}/>}
+    {showIndicatorSettings && <IndicatorLibrary config={indicatorConfig} onCancel={() => setShowIndicatorSettings(false)} onAdd={key => { setIndicatorConfig(previous => ({ ...previous, [key]: { ...previous[key], enabled: true, hidden: false } })); setIndicators(true); }} onConfigure={key => { setShowIndicatorSettings(false); setActiveStudy(key); }}/>}
     <div className="toolbar chart-toolbar">
       <span className="chart-title">Chart</span>
       <div className="timeframe-tabs" id="timeframeTabs">{frames.map(([value, label]) => <button key={value} className={timeframe === value ? 'active' : ''} onClick={() => setTimeframe(value)}>{label}</button>)}</div>
@@ -86,12 +125,12 @@ function ChartPanel({ replay }) {
       <label htmlFor="priceGrid">PRICE GRID</label><select id="priceGrid" value={priceGrid} onChange={event => setPriceGrid(Number(event.target.value))}>{[0, .01, .05, .1, .25, .5, 1, 2, 5].map(value => <option key={value} value={value}>{value || 'Auto'}</option>)}</select>
       {syncStatus && <span className="settings-message">{syncStatus}</span>}
     </div></details>
-    <div className="quote-strip"><div className="chart-actions"><span className="candle-type">Candles</span><button id="indicatorBtn" className={indicators ? 'active' : ''} aria-pressed={indicators} onClick={() => setIndicators(value => !value)}>ƒx RSI · MACD</button><button id="snapshotBtn" onClick={() => { const link = document.createElement('a'); link.download = `XAGUSDT-${date}.png`; link.href = controller.current.snapshot(); link.click(); }}>⌁ Snapshot</button></div>
+    <div className="quote-strip"><div className="chart-actions"><span className="candle-type">Candles</span><button id="indicatorSettings" className="indicator-library-trigger" aria-label="Open indicator library" onClick={() => setShowIndicatorSettings(true)}><span>fx</span> Indicators</button><button id="indicatorBtn" className="indicator-master-visibility" title={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-label={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-pressed={indicators} onClick={() => setIndicators(value => !value)}>{indicators ? '\u25c9' : '\u25cc'}</button><button id="snapshotBtn" onClick={() => { const link = document.createElement('a'); link.download = `XAGUSDT-${date}.png`; link.href = controller.current.snapshot(); link.click(); }}>⌁ Snapshot</button></div>
       {['open', 'high', 'low', 'close'].map(key => <div key={key}><small>{key.toUpperCase()}</small><b id={`${key}Val`}>{quote ? fmt(quote[key]) : '—'}</b></div>)}
     </div>
     <div className="chart-wrap">
-      <nav className="drawing-tools" aria-label="Chart drawing tools">{tools.map(([value, icon, title]) => <button key={value} title={title} aria-label={title} aria-pressed={tool === value} className={tool === value ? 'active' : ''} onClick={() => value === 'delete' ? controller.current?.clearDrawings() : controller.current?.selectTool(value)}>{icon}</button>)}</nav>
-      <div className="chart-legend"><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · LOCAL DATA</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
+      <nav className="drawing-tools" style={{ visibility: maximizedPane && indicators ? 'hidden' : undefined }} aria-label="Chart drawing tools">{tools.map(([value, icon, title]) => <button key={value} title={title} aria-label={title} aria-pressed={tool === value} className={tool === value ? 'active' : ''} onClick={() => value === 'delete' ? controller.current?.clearDrawings() : controller.current?.selectTool(value)}>{icon}</button>)}</nav>
+      <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · LOCAL DATA</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
       <CandleCanvas model={chartModel} options={options} controller={controller} onNeedEarlier={replay.loadEarlier} onHover={onHover}/>
       {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Reading local candles…' : 'Local archive'}</b><span>{replay.status}</span></div>}
       {Math.abs(view.offset) > .01 && <button id="goLive" className="go-live" onClick={() => controller.current.latest()}>Latest replay bar</button>}
