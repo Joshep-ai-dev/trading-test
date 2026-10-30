@@ -57,7 +57,22 @@
     return [...candidates].sort((a, b) => a - b);
   }
 
-  const helpers = { niceStep, priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates };
+  function chartWindow(total, visibleCount, offset = 0, padding = 6) {
+    const count = Math.max(15, Math.min(1500, Math.round(visibleCount)));
+    offset = Math.max(-Math.max(0, count / 2 - padding), Math.min(Math.max(0, total - count + padding), offset));
+    const first = total - offset - count + padding;
+    return { visibleCount: count, offset, first, start: Math.max(0, Math.floor(first)), end: Math.min(total - 1, Math.ceil(first + count - 1)) };
+  }
+
+  function zoomWindow(total, count, offset, nextCount, fraction = 0.5) {
+    const previous = chartWindow(total, count, offset);
+    const next = chartWindow(total, nextCount, offset);
+    // Keep the logical candle beneath the pointer at the same screen position.
+    const anchor = previous.first + fraction * previous.visibleCount;
+    return chartWindow(total, next.visibleCount, total + 6 - next.visibleCount - anchor + fraction * next.visibleCount);
+  }
+
+  const helpers = { niceStep, priceTicks, timeStep, seekIndex, zonedTime, zonedCandidates, chartWindow, zoomWindow };
+  root.ChartUtils = helpers;
   if (typeof module !== 'undefined' && module.exports) module.exports = helpers;
-  else root.ChartUtils = helpers;
 })(globalThis);

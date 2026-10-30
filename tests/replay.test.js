@@ -89,14 +89,29 @@ test('empty days are allowed but exchange failures are surfaced', async t => {
   await assert.rejects(loadCandles('2026-03-02', '1'), /500/);
 });
 
-test('Vercel endpoint rejects invalid dates and returns single-day metadata', async t => {
+test('Vercel endpoint rejects invalid dates and never falls back to online data', async t => {
   const handler = require('../api/candles');
   const response = { code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
   await handler({ method: 'GET', query: { date: '2026-02-30' } }, response);
   assert.equal(response.code, 400);
-  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ code: '0', data: [] }) }));
+  const online = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Must not fetch'); });
   await handler({ method: 'GET', query: { date: '2026-04-01', days: '1' } }, response);
-  assert.equal(response.code, 200);
-  assert.equal(response.body.days, 1);
-  assert.equal(response.body.timezone, 'UTC');
+  assert.equal(response.code, 503);
+  assert.match(response.body.error, /Local-only/);
+  assert.equal(online.mock.callCount(), 0);
+});
+
+
+test('pointer zoom preserves the candle under the cursor and bounds panning', () => {
+  const { chartWindow, zoomWindow } = require('../chart-utils');
+  for (const fraction of [.1, .5, .9]) {
+    const before = chartWindow(1000, 90, 120);
+    const after = zoomWindow(1000, 90, 120, 50, fraction);
+    assert.ok(Math.abs(before.first + fraction * before.visibleCount - after.first - fraction * after.visibleCount) < 1e-8);
+    assert.equal(after.visibleCount, 50);
+  }
+  for (const offset of [-1e8, 0, 1e8]) {
+    const view = chartWindow(90, 90, offset);
+    assert.ok(view.start >= 0 && view.end < 90 && view.start <= view.end);
+  }
 });

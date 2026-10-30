@@ -116,3 +116,126 @@ body { font-size: 15px; }
 .data-status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 5px 12px; color: var(--muted); font-size: 11px; }
 .data-status:has(#dataStatus:empty) { display: none; }
 .data-status button { padding: 5px 8px; }
+
+/* TradingView-inspired workspace. Keep this after the terminal base rules. */
+:root { --bg: #131722; --panel: #131722; --panel2: #1e222d; --line: #2a2e39; --muted: #9598a1; --text: #d1d4dc; --gold: #2962ff; --green: #26a69a; --red: #ef5350; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; }
+header { height: 56px; padding: 0 18px; gap: 30px; background: #131722; border-bottom: 4px solid #0c0e15; }
+.brand { min-width: 170px; gap: 10px; }
+.brand-mark { width: 30px; height: 30px; transform: none; border: 0; border-radius: 7px; background: #2962ff; color: white; font: 700 17px sans-serif; }
+.brand strong { font: 700 15px sans-serif; letter-spacing: 1px; }
+.brand small { font-size: 9px; letter-spacing: 1.4px; }
+.symbol strong { font-size: 14px; }
+.symbol small { font-size: 10px; letter-spacing: 0; }
+.gold-dot { background: #26a69a; box-shadow: none; width: 7px; height: 7px; }
+.header-stats { gap: 25px; }
+.header-stats small { font-size: 10px; letter-spacing: 0; }
+.header-stats b { font-size: 12px; font-variant-numeric: tabular-nums; }
+main { grid-template-columns: minmax(0, 1fr) 310px; min-height: calc(100vh - 84px); }
+.chart-panel { border-right: 4px solid #0c0e15; }
+.toolbar { min-height: 48px; padding: 6px 10px; gap: 6px; background: #131722; }
+.toolbar button, .toolbar select { height: 30px; border-radius: 4px; }
+.date-block { gap: 2px; }
+.date-block label { font-size: 8px; letter-spacing: .5px; margin: 0; }
+.date-block input { padding: 3px 6px; font-size: 11px; width: 125px; border: 0; background: transparent; }
+.divider { height: 24px; margin: 0 3px; }
+.play { width: 32px; color: white; }
+#speed { padding: 3px; width: 65px; font-size: 11px; }
+.timeframe-tabs { height: 30px; border: 0; background: transparent; }
+.timeframe-tabs button { border: 0; min-width: 28px; padding: 0 6px; font-size: 12px; font-weight: 600; color: #b2b5be; }
+.timeframe-tabs button.active { color: #82a6ff; background: #2962ff26; }
+.timeframe-tabs button:hover, .chart-actions button:hover { background: #2a2e39; color: #fff; }
+.ghost { border-color: #363a45; color: #b2b5be; padding: 0 8px; }
+.zoom-controls { gap: 2px; }
+.zoom-controls button { min-width: 28px; font-size: 10px; padding: 0 5px; }
+.clock { gap: 7px; }
+.clock span { font-size: 9px; letter-spacing: 0; }
+.clock b { font-size: 12px; color: #b2b5be; }
+.chart-preferences { border-bottom: 1px solid var(--line); }
+.chart-preferences summary { padding: 7px 12px; font-size: 11px; color: #b2b5be; cursor: pointer; }
+.chart-preferences summary span { margin-left: 12px; color: #787b86; font-size: 10px; }
+.chart-settings { border-bottom: 0; padding: 8px 12px; background: #1e222d; }
+.chart-settings label { font-size: 9px; }
+.chart-settings input, .chart-settings select, .chart-settings button { min-height: 28px; font-size: 11px; padding: 4px 7px; }
+.quote-strip { height: 42px; min-height: 42px; gap: 18px; padding: 0 12px; }
+.quote-strip > div { flex-direction: row; align-items: center; gap: 5px; }
+.quote-strip small { font-size: 9px; letter-spacing: 0; }
+.quote-strip b { font-size: 11px; }
+.quote-strip > span { font-size: 10px; border: 0; }
+.chart-actions { gap: 0; margin-right: 0; padding-right: 8px; }
+.chart-actions button { padding: 0 6px; font-size: 11px; border-radius: 4px; color: #b2b5be; }
+.chart-actions button.active { background: transparent; color: #d1d4dc; }
+.chart-wrap { background: #131722; }
+.drawing-tools { width: 44px; padding-top: 12px; gap: 10px; background: #131722; }
+.drawing-tools button { color: #b2b5be; height: 32px; width: 32px; }
+.drawing-tools button.active { color: #82a6ff; background: #2962ff26; }
+.chart-wrap canvas { left: 44px; width: calc(100% - 44px); }
+.chart-legend { left: 57px; top: 8px; font-size: 11px; gap: 5px; }
+.chart-legend .positive { color: #787b86 !important; }
+.timeline { min-height: 38px; padding: 7px 12px; gap: 10px; font-size: 9px; letter-spacing: 0; }
+.timeline input { height: 4px; border: 0; }
+.data-status { font-size: 10px; padding: 4px 12px; }
+aside { padding: 0; gap: 0; background: #131722; }
+.ticket, .position-card, .history-card { border: 0; border-bottom: 4px solid #0c0e15; padding: 16px; background: #131722; }
+.panel-title { margin-bottom: 16px; }
+.panel-title small { font-size: 10px; color: #9598a1; letter-spacing: .6px; }
+.panel-title h2 { font: 600 15px 'Segoe UI', sans-serif; margin-top: 5px; color: #e0e3eb; }
+.live { font-size: 9px; letter-spacing: 0; }
+.live i { background: #26a69a; }
+.bidask { border: 0; gap: 8px; margin-bottom: 18px; }
+.bidask div { border: 1px solid #ef5350; border-radius: 5px; padding: 8px 10px; }
+.bidask div + div { border: 1px solid #26a69a; }
+.bidask small { font-size: 9px; }
+.bidask b { font-size: 18px; font-weight: 500; }
+label { font-size: 10px; letter-spacing: .3px; }
+label span { color: #9598a1; }
+input, select { border-radius: 4px; font-family: inherit; }
+input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid #82a6ff; outline-offset: 2px; }
+.number-input { grid-template-columns: 32px 1fr 32px; }
+.number-input button { border-radius: 4px; }
+.risk-row input { font-size: 12px; padding: 9px 8px; }
+.leverage-row select { font-size: 12px; height: 33px; }
+.margin { font-size: 11px; line-height: 1.5; }
+.margin small { font-size: 9px; color: #787b86; }
+.order-buttons { gap: 8px; }
+.order-buttons button { border-radius: 5px; height: 46px; }
+.order-buttons span { font-size: 12px; letter-spacing: .3px; }
+.order-buttons small { font-size: 10px; opacity: .85; }
+.short { background: #ef5350; }
+.long { background: #26a69a; }
+.no-position { font-size: 11px; padding: 12px; color: #9598a1; }
+.no-position span { color: #5d6270; }
+.history-head { font-size: 9px; letter-spacing: 0; }
+.history-empty { font-size: 11px; }
+.results-title { color: #b2b5be; font-size: 9px; letter-spacing: .5px; }
+.results-grid { border-color: var(--line); }
+.results-grid span { border-color: var(--line); }
+.results-grid small { font-size: 8px; color: #9598a1; letter-spacing: .3px; }
+.results-grid b { font-size: 11px; }
+.position-item { background: #1e222d; border-color: var(--line); border-radius: 4px; }
+.close-position { border-color: #434651; border-radius: 4px; }
+footer { height: 28px; padding: 0 12px; font-size: 9px; letter-spacing: .3px; background: #131722; }
+@media(min-width:851px) { .chart-panel { height: calc(100vh - 84px); min-height: 660px; } }
+@media(max-width:1200px) { .header-stats { gap: 14px; } .clock { width: 100%; justify-content: flex-end; } .quote-strip { gap: 10px; } }
+@media(max-width:850px) { main { grid-template-columns: 1fr; } header { gap: 15px; padding: 0 12px; } .brand { min-width: 0; } .chart-panel { border-right: 0; } .chart-wrap { height: 520px; } aside { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); } .ticket { grid-row: span 2; border-right: 4px solid #0c0e15; } .history-card { min-width: 0; } .quote-strip { overflow-x: auto; } .quote-strip > div { flex-shrink: 0; } }
+@media(max-width:540px) { aside { display: flex; } .ticket { border-right: 0; } .toolbar { gap: 5px; } .timeframe-tabs { order: -1; width: 100%; border-bottom: 1px solid var(--line); height: 35px; } .timeframe-tabs button { flex: 1; } .clock { justify-content: flex-start; } .chart-actions button { font-size: 10px; } .chart-legend { font-size: 9px; } .chart-preferences summary span { font-size: 9px; margin-left: 4px; } footer { letter-spacing: 0; font-size: 8px; padding: 6px 10px; } }
+.archive-status { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+.archive-status button { min-height: 26px; flex-shrink: 0; border-radius: 4px; font-size: 11px; }
+.archive-status button:disabled { opacity: .5; cursor: default; }
+.drawing-text { position: absolute; z-index: 6; width: 165px; border-color: #82a6ff; font-size: 12px; }
+.chart-wrap canvas { touch-action: none; outline: none; }
+.chart-wrap canvas:focus-visible { box-shadow: inset 0 0 0 1px #2962ff55; }
+.chart-legend { pointer-events: none; }
+.download-week { position: absolute; z-index: 5; top: calc(50% + 65px); left: 50%; transform: translateX(-50%); max-width: calc(100% - 80px); padding: 10px 16px; border: 0; border-radius: 5px; background: #2962ff; color: white; cursor: pointer; font-size: 12px; }
+.download-week:disabled { opacity: .65; cursor: wait; }
+
+/* Consistent local sans-serif typography across the terminal and chart. */
+:root { --font-ui: Arial, Helvetica, sans-serif; }
+body, button, input, select, textarea,
+.brand strong, .panel-title h2, .clock b, .quote-strip b, .bidask b,
+.timeframe-tabs button, .history-row, .history-card .panel-title > b,
+.results-grid b, .position-item-grid, .position-grid b, .chart-tooltip {
+  font-family: var(--font-ui);
+}
+.header-stats b, .quote-strip b, .bidask b, .history-row,
+.results-grid b, .position-item-grid { font-variant-numeric: tabular-nums; }

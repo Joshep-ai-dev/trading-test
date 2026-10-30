@@ -4,6 +4,19 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "download:data": "node download-data.js",
+    "test": "node --test tests/*.test.js",
+    "dev": "node server.js",
+    "build": "vite build",
+    "preview": "node server.js --production",
+    "test:e2e": "npm run build && node e2e/run.cjs"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "vite": "^8.3.5"
   }
 }
