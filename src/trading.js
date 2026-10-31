@@ -36,6 +36,18 @@ export function settleCandle(model, candle) {
   return next;
 }
 
+export function protectionPrice(input, side, entry, quantity, entryFee, kind) {
+  if (input === null || input === undefined) return null;
+  if (typeof input === 'number') return input;
+  const { value, unit } = input;
+  if (!Number.isFinite(value) || value <= 0) throw new Error('TP/SL target must be a positive number');
+  const direction = side === 'LONG' ? 1 : -1, targetSign = kind === 'tp' ? 1 : -1;
+  if (unit === 'price') return value;
+  if (unit === 'percent') return entry * (1 + direction * targetSign * value / 100);
+  if (unit === 'usdt') return (targetSign * value + direction * entry * quantity + entryFee) / (quantity * (direction - FEE_RATE));
+  throw new Error('Choose price, percent, or USDT for TP/SL');
+}
+
 function validateProtection(side, price, sl, tp, trailingPercent) {
   const long = side === 'LONG';
   if (sl !== null && sl !== undefined && (!Number.isFinite(sl) || sl <= 0 || (long ? sl >= price : sl <= price))) throw new Error('Stop loss must be beyond the current price');
@@ -47,6 +59,8 @@ export function updateProtection(model, id, sl, tp, trailingPercent) {
   const position = model.positions.find(p => p.id === id);
   const price = model.candles[model.index]?.close;
   if (!position || !price) throw new Error('Position unavailable');
+  sl = protectionPrice(sl, position.side, position.entry, position.quantity, position.entryFee || 0, 'sl');
+  tp = protectionPrice(tp, position.side, position.entry, position.quantity, position.entryFee || 0, 'tp');
   validateProtection(position.side, price, sl, tp, trailingPercent);
   const unchanged = trailingPercent && trailingPercent === position.trailingPercent;
   const trailingAnchor = trailingPercent ? (unchanged ? position.trailingAnchor : price) : null;
@@ -63,6 +77,8 @@ export function enterTrade(model, side, margin, leverage, sl, tp, trailingPercen
   const used = model.positions.reduce((sum, p) => sum + p.margin, 0);
   const notional = margin * leverage, entryFee = notional * FEE_RATE;
   if (margin + entryFee > equity - used) throw new Error('Insufficient free margin including entry fee');
+  sl = protectionPrice(sl, side, entry, notional / entry, entryFee, 'sl');
+  tp = protectionPrice(tp, side, entry, notional / entry, entryFee, 'tp');
   validateProtection(side, candle.close, sl, tp, trailingPercent);
   return { ...model, balance: model.balance - entryFee, nextId: model.nextId + 1,
     fills: [{ id: `${model.nextId}:open`, positionId: model.nextId, action: `Open ${side.toLowerCase()}`, side: long ? 'BUY' : 'SELL', price: entry, quantity: notional / entry, timestamp: candle.timestamp, fee: entryFee, profit: -entryFee, reason: 'Market order' }, ...(model.fills || [])],

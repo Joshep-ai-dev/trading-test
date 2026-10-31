@@ -160,3 +160,10 @@ changes; Defaults resets that study's draft. Settings and pane order persist in 
 browser. Hide retains pane space, while Remove closes the pane; use **Indicators**
 to add a removed study again. Maximizing a study temporarily uses the entire chart
 canvas, and Restore brings back the original panes and their sizes.
+
+TP/SL supports only **% price move** and **$ net P&L (USDT)** in the
+order ticket and position editor. Percent targets are relative to the original
+entry price, not leveraged ROE. USDT targets solve for a trigger price including
+both entry and exit fees. Enter positive profit/loss magnitudes. Changing the unit
+clears both inputs. Positions persist resolved trigger prices; reopening the editor
+starts in Percent mode, converting the existing trigger prices to entry-price percentages. Gaps/liquidation can produce different actual exit results.

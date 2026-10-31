@@ -172,6 +172,10 @@ function ResizableChart({ replay }) {
 
 export default function App() {
   const replay = useReplay();
+  const titlePrice = replay.model.candles[replay.model.index]?.close;
+  useEffect(() => {
+    document.title = Number.isFinite(titlePrice) ? `${fmt(titlePrice)} | XAGUSDT · Argent Replay` : 'XAGUSDT | Argent Replay';
+  }, [titlePrice]);
   const [tab, setTab] = useState('positions');
   const navigate = next => { setTab(next); if (next !== 'positions') document.getElementById('activity')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
   return <div className="exchange-app">

@@ -117,10 +117,9 @@ test('position TP/SL and trailing stop can be edited, restored, and disabled', a
   await page.locator('#trailing').fill('2');
   await page.locator('#longBtn').click();
   await page.getByRole('button', { name: 'Edit protection for position 1', exact: true }).click();
-  const price = await page.locator('#chart').evaluate(() => JSON.parse(localStorage.getItem('argent-trading-journal-v1')).positions[0].entry);
   await page.getByRole('dialog').getByRole('checkbox', { name: 'TP/SL', exact: true }).check();
-  await page.locator('#editTp').fill(String(price + 5));
-  await page.locator('#editSl').fill(String(price - 5));
+  await page.locator('#editTp').fill('3');
+  await page.locator('#editSl').fill('2');
   await page.locator('#editTrailing').fill('1');
   await page.getByRole('button', { name: 'Save protection', exact: true }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

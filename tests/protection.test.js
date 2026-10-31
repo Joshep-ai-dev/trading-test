@@ -35,3 +35,22 @@ test('editing protection validates prices, preserves unchanged trail, and suppor
   assert.equal(gap.history[0].reason, 'Trailing stop');
   assert.equal(gap.history[0].exit, 97);
 });
+
+test('percent targets follow entry price and USDT targets include both execution fees', async () => {
+  const { enterTrade, closeTrade, updateProtection } = await import('../src/trading.js');
+  const initial = { candles: [{ close: 100, timestamp: 0 }], index: 0, balance: 10000, nextId: 1, positions: [], history: [], fills: [] };
+  for (const side of ['LONG', 'SHORT']) {
+    const direction = side === 'LONG' ? 1 : -1;
+    const percent = enterTrade(initial, side, 100, 5, { unit: 'percent', value: 2 }, { unit: 'percent', value: 3 });
+    const p = percent.positions[0];
+    assert.ok(Math.abs(p.tp - p.entry * (1 + direction * .03)) < 1e-9);
+    assert.ok(Math.abs(p.sl - p.entry * (1 - direction * .02)) < 1e-9);
+    const dollars = enterTrade(initial, side, 100, 5, { unit: 'usdt', value: 10 }, { unit: 'usdt', value: 25 });
+    const position = dollars.positions[0];
+    assert.ok(Math.abs(closeTrade(dollars, 1, position.tp, 60000).history[0].profit - 25) < 1e-8);
+    assert.ok(Math.abs(closeTrade(dollars, 1, position.sl, 60000).history[0].profit + 10) < 1e-8);
+    const edited = updateProtection(dollars, 1, { unit: 'usdt', value: 15 }, { unit: 'usdt', value: 30 }, null);
+    assert.ok(Math.abs(closeTrade(edited, 1, edited.positions[0].tp, 60000).history[0].profit - 30) < 1e-8);
+  }
+  assert.throws(() => enterTrade(initial, 'LONG', 100, 5, null, { unit: 'percent', value: 0 }), /positive/);
+});

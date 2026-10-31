@@ -11,6 +11,7 @@ export function useReplay() {
   const [initialJournal] = useState(readJournal);
   const savedJournal = useRef(initialJournal), bootPending = useRef(true);
   const [recordStatus, setRecordStatus] = useState('Trade records save in this browser');
+  const [removedRecord, setRemovedRecord] = useState(null);
   const cache = useRef(new Map()), historyBusy = useRef(false), nextBusy = useRef(false), available = useRef([]);
   const historyCursor = useRef(''), nextCursor = useRef('');
   const [dates, setDates] = useState([]), [date, setDate] = useState('');
@@ -183,7 +184,26 @@ export function useReplay() {
     setPlaying(false);
     commit(previous => ({ ...previous, index: Math.max(0, Math.min(previous.candles.length - 1, index)), session: previous.session + .001 }));
   };
-  return { model, dates, date, loading, status, recordStatus, syncState, syncNow: () => refreshSync(true), playing, speed, setSpeed, loadDate, loadEarlier, seek,
+  return { model, dates, date, loading, status, recordStatus, removedRecord, syncState, syncNow: () => refreshSync(true), playing, speed, setSpeed, loadDate, loadEarlier, seek,
+    removeHistory(type, id) {
+      if (!['fills', 'history'].includes(type)) return;
+      const records = ref.current[type] || [], index = records.findIndex(record => record.id === id);
+      if (index < 0) return;
+      setRemovedRecord({ type, index, record: records[index] });
+      commit(previous => ({ ...previous, [type]: previous[type].filter(record => record.id !== id) }));
+      setStatus('History item removed. Balance and open positions are unchanged.');
+    },
+    undoHistoryRemoval() {
+      if (!removedRecord) return;
+      const { type, index, record } = removedRecord;
+      commit(previous => {
+        const records = [...(previous[type] || [])];
+        if (!records.some(item => item.id === record.id)) records.splice(Math.min(index, records.length), 0, record);
+        return { ...previous, [type]: records };
+      });
+      setRemovedRecord(null);
+      setStatus('History item restored.');
+    },
     togglePlay: () => { if (ref.current.candles.length) setPlaying(value => !value); },
     enter(side, margin, leverage, sl, tp, trailingPercent) {
       try { commit(enterTrade(ref.current, side, margin, leverage, sl, tp, trailingPercent)); setStatus(`${side} order opened`); }
