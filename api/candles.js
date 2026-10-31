@@ -1,6 +1,7 @@
-const { dateRange } = require('../lib/candles');
+const { dateRange, loadCandles } = require('../lib/candles');
 
 module.exports = async function handler(request, response) {
+  response.setHeader('Cache-Control', 'no-store');
   if (request.method !== 'GET') {
     response.setHeader('Allow', 'GET');
     return response.status(405).json({ error: 'Method not allowed' });
@@ -11,8 +12,10 @@ module.exports = async function handler(request, response) {
     return response.status(400).json({ error: error.message });
   }
   try {
-    response.setHeader('Cache-Control', 'no-store');
-    return response.status(503).json({ error: 'Local-only replay requires npm start on the computer holding .candle-data. Use Sync data there to download candles.' });
+    const payload = await loadCandles(date, days);
+    response.setHeader('Cache-Control', payload.end <= Date.now()
+      ? 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800' : 'no-store');
+    return response.status(200).json({ ...payload, mode: 'hosted' });
   } catch (error) {
     console.error('XAG candle request failed:', error);
     if (error.retryAfter) response.setHeader('Retry-After', String(error.retryAfter));

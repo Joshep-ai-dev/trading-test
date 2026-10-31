@@ -20,7 +20,7 @@ export function ExchangeHeader({ replay, tab, onNavigate }) {
   return <header className="exchange-header">
     <a className="exchange-brand" href="#" onClick={event => { event.preventDefault(); onNavigate('positions'); }}><span className="exchange-logo">a<span/></span><strong>argent<span> / </span></strong></a>
     <nav aria-label="Main navigation"><button className={tab === 'positions' ? 'selected' : ''} onClick={() => onNavigate('positions')}>Trade</button><button className={tab === 'fills' ? 'selected' : ''} onClick={() => onNavigate('fills')}>Activity</button><button className={tab === 'performance' ? 'selected' : ''} onClick={() => onNavigate('performance')}>Performance</button></nav>
-    <div className="header-right"><span className="connection-badge"><i/>Local archive</span><button className="header-sync-button" disabled={replay.syncState.running} onClick={replay.syncNow}>{replay.syncState.running ? 'Syncing…' : 'Sync now'}</button><span className="paper-badge">PAPER TRADING</span><div className="account-avatar" title="Local paper account">AG</div></div>
+    <div className="header-right"><span className="connection-badge"><i/>{replay.dataMode === 'hosted' ? 'OKX data' : 'Local archive'}</span><button className="header-sync-button" disabled={replay.syncState.running} onClick={replay.syncNow}>{replay.syncState.running ? 'Syncing…' : 'Sync now'}</button><span className="paper-badge">PAPER TRADING</span><div className="account-avatar" title="Local paper account">AG</div></div>
   </header>;
 }
 
@@ -68,7 +68,7 @@ export function OrderTicket({ replay }) {
 function SyncStatus({ replay }) {
   const sync = replay.syncState;
   const stamp = value => value ? new Date(value).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : 'Not synced yet';
-  return <div className="sync-status-card"><div><strong>Local data sync</strong><span>Every 10 minutes</span></div><p>Saved through <b>{stamp(sync.latestCandle)}</b></p>{sync.running && <p className="positive">Syncing {sync.completedDays} / {sync.totalDays} days…</p>}{sync.error && <p className="negative" role="alert">{sync.error}</p>}<div><span>{sync.nextSync ? `Next: ${stamp(sync.nextSync)}` : 'Auto sync while server is running'}</span><button disabled={sync.running} onClick={replay.syncNow}>{sync.running ? 'Syncing…' : sync.error ? 'Retry sync' : 'Sync now'}</button></div></div>;
+  return <div className="sync-status-card"><div><strong>{replay.dataMode === 'hosted' ? 'Market data refresh' : 'Local data sync'}</strong><span>Every 10 minutes</span></div><p>{replay.dataMode === 'hosted' ? 'Available through' : 'Saved through'} <b>{stamp(sync.latestCandle)}</b></p>{sync.running && <p className="positive">Syncing {sync.completedDays} / {sync.totalDays} days…</p>}{sync.error && <p className="negative" role="alert">{sync.error}</p>}<div><span>{sync.nextSync ? `Next: ${stamp(sync.nextSync)}` : replay.dataMode === 'hosted' ? 'Refreshes while this page is open' : 'Auto sync while server is running'}</span><button disabled={sync.running} onClick={replay.syncNow}>{sync.running ? 'Syncing…' : sync.error ? 'Retry sync' : 'Sync now'}</button></div></div>;
 }
 
 export function AccountSummary({ replay }) {

@@ -1,8 +1,8 @@
 # Argent Replay
 
 A React browser simulator for OKX XAG-USDT-SWAP futures. Orders and balances
-are simulated. All chart candles are read from this computer's `.candle-data/`
-archive; chart requests never fall back to the exchange.
+are simulated. Local mode reads this computer's `.candle-data/` archive only.
+Vercel mode loads public OKX candles through serverless API functions and caches completed days.
 
 ## Run
 
@@ -69,9 +69,29 @@ orders, playback, timeframe controls, and phone layout. Screenshots are saved in
 - `server.js`: Vite/static frontend and local archive/sync APIs.
 - `lib/archive.js`, `lib/candles.js`, `lib/rate-limit.js`: disk archive and downloader.
 
-Vercel can build the static React UI, but cannot read this computer's archive.
-Its candle endpoint returns a local-server requirement instead of fetching online.
-Run the app locally for replay. No local candle files are uploaded to Vercel.
+## Deploy to Vercel
+
+Deploy the repository root using the included `vercel.json`. Build command:
+`npm run build`; output directory: `dist`. Vercel also deploys the root `api/`
+functions. Do not deploy only the `dist/` folder, since that omits the data API.
+Redeploy after adding or changing these API files.
+
+- `/api/local-data`: hosted date catalog from January 28, 2026 through today (UTC).
+- `/api/candles?date=YYYY-MM-DD&days=1`: historical OKX candles, with serialized
+  pagination and rate-limit retries. Completed days use browser/CDN caching;
+  current-day responses are not cached.
+- `/api/sync`: GET reports hosted mode; POST refreshes current-day OKX data. The
+  page requests a refresh every 10 minutes while open. No background disk writer
+  is expected to run inside a Vercel Function.
+
+No environment variables or private exchange credentials are needed. Vercel must
+be able to reach OKX. Exchange availability/rate limits are shown as API errors.
+The date catalog represents selectable dates, and does not imply every date has
+candles. Your computer's ignored `.candle-data/` files are not uploaded by Git.
+Hosted mode uses OKX on demand; it does not provide a durable hosted copy of your
+local archive. Local `npm start` continues to serve saved files without an online
+chart fallback. Trade records and preferences remain browser-local and separate
+for each hostname/port.
 
 If the default port 4173 is occupied, `npm start` tries the next available port
 and prints the URL to open. An explicitly configured `PORT` is respected; if it

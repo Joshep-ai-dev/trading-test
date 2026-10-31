@@ -240,3 +240,24 @@ test('indicator windows support per-study settings, style, ordering, maximize, h
   await expect(dialog.getByRole('checkbox', { name: 'Values in indicator header', exact: true })).not.toBeChecked();
   expect(errors).toEqual([]);
 });
+
+test('hosted deployment loads the OKX catalog and candles without a local archive', async ({ page }) => {
+  const errors = [], requested = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const dates = Array.from({ length: 8 }, (_, i) => `2026-08-${String(9 + i).padStart(2, '0')}`);
+  await page.route('**/api/local-data', route => route.fulfill({ json: { mode: 'hosted', dates, latestCandle: null } }));
+  await page.route('**/api/candles?*', route => {
+    const date = new URL(route.request().url()).searchParams.get('date'); requested.push(date);
+    const start = Date.parse(`${date}T00:00:00Z`);
+    return route.fulfill({ json: { mode: 'hosted', candles: Array.from({ length: 1440 }, (_, i) => ({ timestamp: start + i * 60000, open: 50, high: 51, low: 49, close: 50.1 + Math.sin(i / 10) * .1, volume: 10 })) } });
+  });
+  await page.route('**/api/sync', route => route.fulfill({ json: { mode: 'hosted', running: false, completedDays: 1, totalDays: 1, latestCandle: route.request().method() === 'POST' ? '2026-08-16T12:00:00Z' : null, lastSync: null, error: null } }));
+  await page.goto('/');
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect(page.locator('.chart-legend')).toContainText('OKX DATA');
+  await expect(page.locator('.sync-status-card')).toContainText('Market data refresh');
+  await expect.poll(() => requested.includes('2026-08-09')).toBe(true);
+  await page.locator('.header-sync-button').click();
+  await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 12:00 UTC');
+  expect(errors).toEqual([]);
+});

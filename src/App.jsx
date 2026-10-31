@@ -130,9 +130,9 @@ function ChartPanel({ replay }) {
     </div>
     <div className="chart-wrap">
       <nav className="drawing-tools" style={{ visibility: maximizedPane && indicators ? 'hidden' : undefined }} aria-label="Chart drawing tools">{tools.map(([value, icon, title]) => <button key={value} title={title} aria-label={title} aria-pressed={tool === value} className={tool === value ? 'active' : ''} onClick={() => value === 'delete' ? controller.current?.clearDrawings() : controller.current?.selectTool(value)}>{icon}</button>)}</nav>
-      <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · LOCAL DATA</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
+      <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · {replay.dataMode === 'hosted' ? 'OKX DATA' : 'LOCAL DATA'}</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
       <CandleCanvas model={chartModel} options={options} controller={controller} onNeedEarlier={replay.loadEarlier} onHover={onHover}/>
-      {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Reading local candles…' : 'Local archive'}</b><span>{replay.status}</span></div>}
+      {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Loading candles...' : replay.dataMode === 'hosted' ? 'Historical market data' : 'Local archive'}</b><span>{replay.status}</span></div>}
       {Math.abs(view.offset) > .01 && <button id="goLive" className="go-live" onClick={() => controller.current.latest()}>Latest replay bar</button>}
     </div>
     <div className="replay-controls">
@@ -182,6 +182,6 @@ export default function App() {
     <ExchangeHeader replay={replay} tab={tab} onNavigate={navigate}/>
     <MarketStrip model={replay.model}/>
     <main className="exchange-workspace"><div className="trading-workspace"><ResizableChart replay={replay}/><TradingLedger replay={replay} tab={tab} setTab={setTab}/></div><aside className="exchange-sidebar"><OrderTicket replay={replay}/><AccountSummary replay={replay}/></aside></main>
-    <footer className="exchange-footer"><span className="connection-badge"><i/>{replay.dates.length} local data days</span><span id="dataStatus" role="status">{replay.status}</span><span>SIMULATED TRADING · LOCAL RECORDS</span></footer>
+    <footer className="exchange-footer"><span className="connection-badge"><i/>{replay.dates.length} {replay.dataMode === 'hosted' ? 'available' : 'local data'} days</span><span id="dataStatus" role="status">{replay.status}</span><span>SIMULATED TRADING · LOCAL RECORDS</span></footer>
   </div>;
 }

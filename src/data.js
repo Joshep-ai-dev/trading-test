@@ -3,8 +3,9 @@ export const dateOf = timestamp => new Date(timestamp).toISOString().slice(0, 10
 
 export async function readLocalDay(date, signal) {
   const response = await fetch(`/api/candles?date=${encodeURIComponent(date)}&days=1`, { signal });
-  const result = await response.json();
-  if (!response.ok) throw new Error(result.error || `Local data error (${response.status})`);
+  let result;
+  try { result = await response.json(); } catch { throw new Error(`Candle API returned an invalid response (${response.status}). Check your deployment's /api/candles route.`); }
+  if (!response.ok) throw new Error(result.error || `Market data error (${response.status})`);
   return result.candles;
 }
 

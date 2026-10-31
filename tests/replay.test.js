@@ -89,16 +89,17 @@ test('empty days are allowed but exchange failures are surfaced', async t => {
   await assert.rejects(loadCandles('2026-03-02', '1'), /500/);
 });
 
-test('Vercel endpoint rejects invalid dates and never falls back to online data', async t => {
+test('Vercel endpoint validates dates and serves hosted OKX data', async t => {
   const handler = require('../api/candles');
   const response = { code: 200, setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
   await handler({ method: 'GET', query: { date: '2026-02-30' } }, response);
   assert.equal(response.code, 400);
-  const online = t.mock.method(globalThis, 'fetch', async () => { throw new Error('Must not fetch'); });
+  const online = t.mock.method(globalThis, 'fetch', async () => ({ ok: true, json: async () => ({ code: '0', data: [] }) }));
   await handler({ method: 'GET', query: { date: '2026-04-01', days: '1' } }, response);
-  assert.equal(response.code, 503);
-  assert.match(response.body.error, /Local-only/);
-  assert.equal(online.mock.callCount(), 0);
+  assert.equal(response.code, 200);
+  assert.equal(response.body.mode, 'hosted');
+  assert.equal(response.body.days, 1);
+  assert.equal(online.mock.callCount(), 1);
 });
 
 

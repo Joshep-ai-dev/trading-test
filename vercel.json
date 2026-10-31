@@ -6,6 +6,9 @@
   "functions": {
     "api/candles.js": {
       "maxDuration": 60
+    },
+    "api/sync.js": {
+      "maxDuration": 60
     }
   }
 }
