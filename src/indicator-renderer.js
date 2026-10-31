@@ -46,6 +46,27 @@ export function drawIndicatorPanes(ctx, data, config, layout, m, font) {
   }
 }
 
+function fillToPrice(ctx, values, color, m) {
+  ctx.save(); ctx.fillStyle = color; ctx.globalAlpha *= .14;
+  let run = [];
+  const fill = () => {
+    if (!run.length) return;
+    ctx.beginPath();
+    for (let j = 0; j < run.length; j++) {
+      const i = run[j], x = m.xFor(i - m.start), y = m.y(values[i]);
+      if (j) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+    }
+    for (let j = run.length - 1; j >= 0; j--) {
+      const i = run[j]; ctx.lineTo(m.xFor(i - m.start), m.y(m.bars[i].close));
+    }
+    ctx.closePath(); ctx.fill(); run = [];
+  };
+  for (let i = Math.max(0, m.start - 1); i <= Math.min(m.bars.length - 1, m.end + 1); i++) {
+    if (Number.isFinite(values[i])) run.push(i); else fill();
+  }
+  fill(); ctx.restore();
+}
+
 export function drawPriceIndicators(ctx, data, config, m, font) {
   ctx.save(); ctx.setLineDash([]); ctx.beginPath(); ctx.rect(m.left, m.top, m.right - m.left, m.bottom - m.top); ctx.clip();
   if (data.bb && !config.bb.hidden) {
@@ -57,7 +78,12 @@ export function drawPriceIndicators(ctx, data, config, m, font) {
     }
     plot(ctx, data.bb.upper, config.bb.color, m, m.y, config.bb.lineWidth); plot(ctx, data.bb.lower, config.bb.color, m, m.y, config.bb.lineWidth); plot(ctx, data.bb.basis, '#c5a86a', m, m.y, config.bb.lineWidth);
   }
-  if (data.supertrend && !config.supertrend.hidden) { plot(ctx, data.supertrend.up, config.supertrend.color, m, m.y, config.supertrend.lineWidth); plot(ctx, data.supertrend.down, '#ee8595', m, m.y, config.supertrend.lineWidth); }
+  if (data.supertrend && !config.supertrend.hidden) {
+    fillToPrice(ctx, data.supertrend.up, config.supertrend.color, m);
+    fillToPrice(ctx, data.supertrend.down, '#ee8595', m);
+    plot(ctx, data.supertrend.up, config.supertrend.color, m, m.y, config.supertrend.lineWidth);
+    plot(ctx, data.supertrend.down, '#ee8595', m, m.y, config.supertrend.lineWidth);
+  }
   ctx.restore();
   ctx.save(); ctx.font = `9px ${font}`; ctx.fillStyle = '#8eacb6'; ctx.textAlign = 'left';
   let yy = m.top + 12;
