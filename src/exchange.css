@@ -351,3 +351,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .closed-pnl-card strong>small { font-size:8px; font-weight:400; }
 .closed-pnl-card>time { display:block; font-size:8px; color:#72968d; }
 @media(max-width:540px) { .closed-pnl-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+.protection-preview { margin:12px 0; padding:10px 0; border-top:1px solid #2a454b; border-bottom:1px solid #2a454b; }
+.protection-preview table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+.protection-preview th,.protection-preview td { font-size:9px; padding:7px 3px; text-align:right; border:0; }
+.protection-preview thead th { color:#74979e; font-weight:400; font-size:8px; }
+.protection-preview th:first-child { text-align:left; color:#a6c9c3; font-weight:500; }
+.protection-preview td { color:#bed8d4; }
+.protection-preview td>small { display:block; font-size:8px; margin-top:4px; opacity:.7; }
+.protection-preview>small { display:block; font-size:8px; color:#6f9499; line-height:1.6; margin-top:7px; }
+.protection-preview-side { display:flex; align-items:center; gap:7px; margin-top:12px; }
+.protection-preview-side>span { margin-right:auto; color:#72979d; font-size:9px; }
+.protection-preview-side button { padding:4px 7px; font-size:9px; border:1px solid #34554c; border-radius:3px; background:transparent; color:#8ba99d; }
+.protection-preview-side button[aria-pressed=true] { color:#b5ebd2; background:#254a39; }
+.account-reset { border-top:1px solid var(--line); margin-top:16px; padding-top:16px; }
+.account-reset>label { color:#9cbbb7; font-size:10px; letter-spacing:0; }
+.account-reset>div { display:flex; gap:7px; }
+.account-reset input { width:100%; min-width:0; height:32px; padding:7px 8px; background:#12282c; border-color:#355449; font-size:12px; }
+.account-reset button { padding:7px 9px; border:1px solid #42614d; border-radius:4px; background:#214032; color:#b1d9c5; white-space:nowrap; font-size:10px; }
+.account-reset>small { display:block; color:#84968a; font-size:9px; line-height:1.6; margin-top:8px; }

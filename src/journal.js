@@ -5,6 +5,7 @@ export function readJournal(storage) {
     storage ??= globalThis.localStorage;
     const journal = JSON.parse(storage.getItem(JOURNAL_KEY));
     if (!journal || journal.version !== 1 || !/^\d{4}-\d{2}-\d{2}$/.test(journal.date) || !Number.isFinite(journal.balance) || !Array.isArray(journal.positions) || !Array.isArray(journal.history) || !Array.isArray(journal.fills) || !Number.isInteger(journal.nextId) || journal.nextId < 1 || !Number.isFinite(journal.timestamp)) return null;
+    journal.startingBalance = Number.isFinite(journal.startingBalance) && journal.startingBalance > 0 ? journal.startingBalance : 10000;
     return journal;
   } catch { return null; }
 }
@@ -12,7 +13,7 @@ export function readJournal(storage) {
 export function writeJournal(model, date, storage = globalThis.localStorage) {
   const timestamp = model.candles[model.index]?.timestamp;
   if (timestamp === undefined) return;
-  storage.setItem(JOURNAL_KEY, JSON.stringify({ version: 1, date, timestamp, balance: model.balance, nextId: model.nextId, positions: model.positions, history: model.history, fills: model.fills || [], savedAt: Date.now() }));
+  storage.setItem(JOURNAL_KEY, JSON.stringify({ version: 1, date, timestamp, startingBalance: model.startingBalance || 10000, balance: model.balance, nextId: model.nextId, positions: model.positions, history: model.history, fills: model.fills || [], savedAt: Date.now() }));
 }
 
 export function journalCsv(fills) {

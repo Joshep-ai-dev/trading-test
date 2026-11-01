@@ -261,3 +261,22 @@ test('hosted deployment loads the OKX catalog and candles without a local archiv
   await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 12:00 UTC');
   expect(errors).toEqual([]);
 });
+
+test('starting amount reset clears paper trades and persists the new account baseline', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await page.locator('#longBtn').click();
+  const timestamp = await page.locator('#timeLabel').textContent();
+  await page.getByRole('spinbutton', { name: 'Starting amount', exact: true }).fill('2500.55');
+  await page.getByRole('button', { name: 'Reset account', exact: true }).click();
+  await expect(page.locator('#balance')).toHaveText('2,500.55');
+  await expect(page.locator('#equity')).toContainText('2,500.55');
+  await expect(page.locator('#positionStatus')).toHaveText('No active trades');
+  await expect(page.locator('#realized')).toHaveText('+0.00');
+  await expect(page.locator('#timeLabel')).toHaveText(timestamp);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('argent-trading-journal-v1')).startingBalance)).toBe(2500.55);
+  await page.reload();
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect(page.locator('#balance')).toHaveText('2,500.55');
+  await expect(page.locator('#realized')).toHaveText('+0.00');
+});

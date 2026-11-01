@@ -54,3 +54,20 @@ test('percent targets follow entry price and USDT targets include both execution
   }
   assert.throws(() => enterTrade(initial, 'LONG', 100, 5, null, { unit: 'percent', value: 0 }), /positive/);
 });
+
+test('protection preview reports trigger price, net P&L, price percent and net ROE', async () => {
+  const { enterTrade, closeTrade, protectionPreview } = await import('../src/trading.js');
+  const initial = { candles: [{ close: 100, timestamp: 0 }], index: 0, balance: 10000, nextId: 1, positions: [], history: [], fills: [] };
+  for (const side of ['LONG', 'SHORT']) {
+    const opened = enterTrade(initial, side, 100, 5, null, null);
+    for (const [kind, amount] of [['tp', 25], ['sl', 10]]) {
+      const position = opened.positions[0];
+      const preview = protectionPreview({ unit: 'usdt', value: amount }, position, kind);
+      const result = closeTrade(opened, position.id, preview.price, 60000).history[0];
+      assert.ok(Math.abs(preview.netProfit - result.profit) < 1e-8);
+      assert.ok(Math.abs(preview.netProfit - (kind === 'tp' ? amount : -amount)) < 1e-8);
+      assert.ok(Math.abs(preview.roe - preview.netProfit / position.margin * 100) < 1e-8);
+      assert.ok(kind === 'tp' ? preview.pricePercent > 0 : preview.pricePercent < 0);
+    }
+  }
+});

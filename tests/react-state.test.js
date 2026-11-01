@@ -56,3 +56,20 @@ test('entry and exit each charge 0.06% of executed notional without double deduc
     assert.throws(() => enterTrade({ ...initial, balance: 100 }, side, 100, 20, null, null), /entry fee/);
   }
 });
+
+test('resetting starting amount clears account activity and preserves replay data', async () => {
+  const { resetAccount } = await import('../src/trading.js');
+  const candles = [{ timestamp: 0, close: 50 }];
+  const model = { candles, index: 0, balance: 9000, startingBalance: 10000, positions: [{ id: 1 }], history: [{ id: 2 }], fills: [{ id: '1:open' }], nextId: 3 };
+  const reset = resetAccount(model, 2500.55);
+  assert.equal(reset.balance, 2500.55);
+  assert.equal(reset.startingBalance, 2500.55);
+  assert.equal(reset.candles, candles);
+  assert.equal(reset.index, 0);
+  assert.deepEqual(reset.positions, []);
+  assert.deepEqual(reset.history, []);
+  assert.deepEqual(reset.fills, []);
+  assert.equal(reset.nextId, 1);
+  assert.throws(() => resetAccount(model, 0), /Starting amount/);
+  assert.throws(() => resetAccount(model, NaN), /Starting amount/);
+});

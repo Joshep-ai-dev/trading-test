@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DAY, dateOf, mergeCandles, prependHistory, readLocalDay } from './data.js';
-import { INITIAL_BALANCE, closeTrade, enterTrade, settleCandle, updateProtection } from './trading.js';
+import { INITIAL_BALANCE, closeTrade, enterTrade, settleCandle, updateProtection, resetAccount } from './trading.js';
 import { readJournal, writeJournal } from './journal.js';
 
-const emptyModel = session => ({ session, candles: [], index: 0, rangeStart: 0, positions: [], history: [], fills: [], balance: INITIAL_BALANCE, nextId: 1 });
+const emptyModel = session => ({ session, candles: [], index: 0, rangeStart: 0, positions: [], history: [], fills: [], startingBalance: INITIAL_BALANCE, balance: INITIAL_BALANCE, nextId: 1 });
 
 export function useReplay() {
   const [model, setModel] = useState(() => emptyModel(0));
@@ -39,7 +39,7 @@ export function useReplay() {
     const restore = bootPending.current && savedJournal.current?.date === selected ? savedJournal.current : null;
     bootPending.current = false;
     const account = restore || ref.current;
-    const accountState = { positions: account.positions, history: account.history, fills: account.fills || [], balance: account.balance, nextId: account.nextId };
+    const accountState = { positions: account.positions, history: account.history, fills: account.fills || [], startingBalance: account.startingBalance || INITIAL_BALANCE, balance: account.balance, nextId: account.nextId };
     const session = ++generation.current;
     controller.current?.abort();
     controller.current = new AbortController();
@@ -192,6 +192,15 @@ export function useReplay() {
     commit(previous => ({ ...previous, index: Math.max(0, Math.min(previous.candles.length - 1, index)), session: previous.session + .001 }));
   };
   return { model, dates, date, dataMode, loading, status, recordStatus, removedRecord, syncState, syncNow: () => refreshSync(true), playing, speed, setSpeed, loadDate, loadEarlier, seek,
+    resetAccount(amount) {
+      try {
+        if (loading || !ref.current.candles.length) throw new Error('Wait for candles to load before resetting the account');
+        const next = resetAccount(ref.current, amount);
+        setPlaying(false); setRemovedRecord(null); commit(next);
+        setStatus(`Paper account reset to ${next.startingBalance.toLocaleString()} USDT. Positions and trade records cleared.`);
+        return true;
+      } catch (error) { setStatus(error.message); return false; }
+    },
     removeHistory(type, id) {
       if (!['fills', 'history'].includes(type)) return;
       const records = ref.current[type] || [], index = records.findIndex(record => record.id === id);

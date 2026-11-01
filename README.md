@@ -187,3 +187,13 @@ entry price, not leveraged ROE. USDT targets solve for a trigger price including
 both entry and exit fees. Enter positive profit/loss magnitudes. Changing the unit
 clears both inputs. Positions persist resolved trigger prices; reopening the editor
 starts in Percent mode, converting the existing trigger prices to entry-price percentages. Gaps/liquidation can produce different actual exit results.
+
+TP/SL includes a live outcome preview showing each trigger price, fee-adjusted net
+P&L, price-change percentage and net ROE on margin together. Order entry has a
+Long/Short preview selector; the position editor uses the position's actual side,
+entry, size and paid entry fee. The target inputs remain percent or USDT.
+
+In **Account overview**, enter a **Starting amount** and click **Reset account**.
+This resets the paper balance to that amount, clears positions and trade records,
+and pauses playback without changing replay time or candles. The custom baseline
+persists in the browser journal and is used for account returns and P&L statistics.

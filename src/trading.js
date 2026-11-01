@@ -1,5 +1,10 @@
 export const INITIAL_BALANCE = 10000;
 export const FEE_RATE = 0.0006;
+export function resetAccount(model, amount) {
+  if (!Number.isFinite(amount) || amount < .01 || amount > 1000000000) throw new Error('Starting amount must be between 0.01 and 1,000,000,000 USDT');
+  const startingBalance = Math.round(amount * 100) / 100;
+  return { ...model, startingBalance, balance: startingBalance, positions: [], history: [], fills: [], nextId: 1 };
+}
 export const pnl = (position, price) => (position.side === 'LONG' ? price - position.entry : position.entry - price) * position.quantity;
 
 export function closeTrade(model, id, price, timestamp, reason = 'Market close') {
@@ -46,6 +51,14 @@ export function protectionPrice(input, side, entry, quantity, entryFee, kind) {
   if (unit === 'percent') return entry * (1 + direction * targetSign * value / 100);
   if (unit === 'usdt') return (targetSign * value + direction * entry * quantity + entryFee) / (quantity * (direction - FEE_RATE));
   throw new Error('Choose price, percent, or USDT for TP/SL');
+}
+
+export function protectionPreview(input, position, kind) {
+  const price = protectionPrice(input, position.side, position.entry, position.quantity, position.entryFee || 0, kind);
+  if (!Number.isFinite(price) || price <= 0 || !Number.isFinite(position.quantity) || position.quantity <= 0) return null;
+  const fees = (position.entryFee || 0) + price * position.quantity * FEE_RATE;
+  const netProfit = pnl(position, price) - fees;
+  return { price, netProfit, pricePercent: (position.side === 'LONG' ? 1 : -1) * (price / position.entry - 1) * 100, roe: position.margin > 0 ? netProfit / position.margin * 100 : 0 };
 }
 
 function validateProtection(side, price, sl, tp, trailingPercent) {

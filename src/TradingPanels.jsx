@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { INITIAL_BALANCE, FEE_RATE, pnl } from './trading.js';
+import { INITIAL_BALANCE, FEE_RATE, pnl, protectionPreview } from './trading.js';
 import { journalCsv } from './journal.js';
 
 export const fmt = (value, digits = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -34,6 +34,14 @@ export function MarketStrip({ model }) {
   return <section className="market-strip" aria-label="Market summary"><div className="market-identity"><span className="silver-token">Ag</span><div><h1>XAG<span>/USDT</span><em>PERP</em></h1><p>Silver perpetual futures</p></div></div><div className="market-price"><strong className={stats ? tone(stats.change) : ''}>{current ? fmt(current.close) : '—'}</strong><span>Replay mark price</span></div><div className="market-metrics">{[['24h change', stats ? `${signed(stats.change)}%` : '—', stats ? tone(stats.change) : ''], ['24h high', stats ? fmt(stats.high) : '—'], ['24h low', stats ? fmt(stats.low) : '—'], ['24h volume · contracts', stats ? fmt(stats.volume, 0) : '—']].map(([label, value, color]) => <div key={label}><small>{label}</small><b className={color}>{value}</b></div>)}</div><span className="market-source"><i/>OKX historical feed</span></section>;
 }
 
+function ProtectionPreview({ position, tp, sl, unit }) {
+  const preview = (value, kind) => {
+    if (value === '') return null;
+    try { return protectionPreview(protectionInput(value, unit), position, kind); } catch { return null; }
+  };
+  return <div className="protection-preview"><table aria-label="TP/SL outcome preview"><thead><tr><th>Trigger</th><th>Price (USDT)</th><th>Net P&amp;L</th><th>Price %</th></tr></thead><tbody>{[['TP', preview(tp, 'tp')], ['SL', preview(sl, 'sl')]].map(([label, result]) => <tr key={label}><th>{label} price</th><td>{result ? fmt(result.price, 4) : '—'}</td><td className={result ? tone(result.netProfit) : ''}>{result ? `${signed(result.netProfit)} USDT` : '—'}{result && <small>{signed(result.roe)}% ROE</small>}</td><td className={result ? tone(result.pricePercent) : ''}>{result ? `${signed(result.pricePercent)}%` : '—'}</td></tr>)}</tbody></table><small>Net P&amp;L includes both 0.06% fees. ROE is net return on margin.</small></div>;
+}
+
 function ProtectionUnit({ value, onChange, disabled }) {
   return <div className="protection-unit"><label>TP/SL units<select aria-label="TP/SL units" value={value} disabled={disabled} onChange={event => onChange(event.target.value)}><option value="percent">% price move</option><option value="usdt">$ net P&amp;L (USDT)</option></select></label><small>{value === 'percent' ? 'Percent change from entry price, not leveraged return.' : 'Target profit or loss in USDT, including both fees.'} Changing units clears the inputs.</small></div>;
 }
@@ -45,8 +53,11 @@ function ProtectionChoices({ fixed, setFixed, trailing, setTrailing }) {
 export function OrderTicket({ replay }) {
   const [size, setSize] = useState('100'), [leverage, setLeverage] = useState(20), [sl, setSl] = useState(''), [tp, setTp] = useState(''), [trailing, setTrailing] = useState('');
   const [unit, setUnit] = useState('percent');
+  const [previewSide, setPreviewSide] = useState('LONG');
   const [useFixed, setUseFixed] = useState(false), [useTrailing, setUseTrailing] = useState(false);
   const account = accountValues(replay.model), notional = Number(size) * leverage;
+  const previewEntry = account.price > 0 ? account.price + (previewSide === 'LONG' ? .003 : -.003) : NaN;
+  const previewPosition = { side: previewSide, entry: previewEntry, quantity: notional / previewEntry, entryFee: notional * FEE_RATE, margin: Number(size) };
   return <section className="exchange-ticket">
     <div className="ticket-heading"><h2>Place order</h2><span>USDT perpetual</span></div>
     <div className="margin-controls"><span>Isolated margin</span><label htmlFor="leverage">Leverage <select id="leverage" value={leverage} onChange={event => setLeverage(Number(event.target.value))}>{[1, 2, 5, 10, 20, 50].map(value => <option key={value} value={value}>{value}×</option>)}</select></label></div>
@@ -58,6 +69,7 @@ export function OrderTicket({ replay }) {
     <ProtectionChoices fixed={useFixed} setFixed={setUseFixed} trailing={useTrailing} setTrailing={setUseTrailing}/>
     <ProtectionUnit value={unit} disabled={!useFixed} onChange={value => { setUnit(value); setTp(''); setSl(''); }}/>
     <div className="protection-fields"><div className="order-field"><label htmlFor="tp">Take profit</label><input id="tp" disabled={!useFixed} type="number" step=".01" placeholder={unit === 'percent' ? 'Price move %' : 'Net profit USDT'} value={tp} onChange={event => setTp(event.target.value)}/></div><div className="order-field"><label htmlFor="sl">Stop loss</label><input id="sl" disabled={!useFixed} type="number" step=".01" placeholder={unit === 'percent' ? 'Price move %' : 'Net loss USDT'} value={sl} onChange={event => setSl(event.target.value)}/></div></div>
+    {useFixed && <><div className="protection-preview-side"><span>Preview side</span>{['LONG', 'SHORT'].map(side => <button key={side} aria-pressed={previewSide === side} onClick={() => setPreviewSide(side)}>{side}</button>)}</div><ProtectionPreview position={previewPosition} tp={tp} sl={sl} unit={unit}/></>}
     <div className="order-field trailing-field"><label htmlFor="trailing">Trailing stop <span>Distance %</span></label><input id="trailing" disabled={!useTrailing} type="number" min="0.01" max="99.99" step="0.01" placeholder="Optional, e.g. 1.0" value={trailing} onChange={event => setTrailing(event.target.value)}/><small>Follows favorable minute closes. Never moves backward.</small></div>
     <dl className="order-estimates"><div><dt>Order value</dt><dd id="margin">{fmt(notional)} USDT</dd></div><div><dt>Estimated size</dt><dd>{account.price ? fmt(notional / account.price, 4) : '—'} XAG</dd></div><div><dt>Entry fee (0.06%)</dt><dd>{fmt(notional * FEE_RATE, 4)} USDT</dd></div><div><dt>Exit fee</dt><dd>0.06% of exit value</dd></div><div><dt>Execution</dt><dd>Market · Full fill</dd></div></dl>
     <div className="exchange-order-buttons"><button id="longBtn" disabled={!account.price || replay.loading} className="buy-button" onClick={() => replay.enter('LONG', Number(size), leverage, useFixed ? protectionInput(sl, unit) : null, useFixed ? protectionInput(tp, unit) : null, useTrailing ? (trailing === '' ? NaN : Number(trailing)) : null)}>Buy / Long <span>↗</span></button><button id="shortBtn" disabled={!account.price || replay.loading} className="sell-button" onClick={() => replay.enter('SHORT', Number(size), leverage, useFixed ? protectionInput(sl, unit) : null, useFixed ? protectionInput(tp, unit) : null, useTrailing ? (trailing === '' ? NaN : Number(trailing)) : null)}>Sell / Short <span>↘</span></button></div>
@@ -73,10 +85,17 @@ function SyncStatus({ replay }) {
 
 export function AccountSummary({ replay }) {
   const { model } = replay, account = accountValues(model);
+  const startingBalance = model.startingBalance || INITIAL_BALANCE;
+  const [resetAmount, setResetAmount] = useState('');
   const utilization = account.equity > 0 ? Math.min(100, account.used / account.equity * 100) : 0;
-  return <section className="account-summary"><div className="section-heading"><h2>Account overview</h2><span className="small-badge">PAPER</span></div><small className="equity-label">Account equity</small><strong id="equity" className="equity-value">{fmt(account.equity)}<small> USDT</small></strong><div className={`account-return ${tone(account.equity - INITIAL_BALANCE)}`}>{signed(account.equity - INITIAL_BALANCE)} USDT <span>({signed((account.equity / INITIAL_BALANCE - 1) * 100)}%)</span></div>
+  return <section className="account-summary"><div className="section-heading"><h2>Account overview</h2><span className="small-badge">PAPER</span></div><small className="equity-label">Account equity</small><strong id="equity" className="equity-value">{fmt(account.equity)}<small> USDT</small></strong><div className={`account-return ${tone(account.equity - startingBalance)}`}>{signed(account.equity - startingBalance)} USDT <span>({signed((account.equity / startingBalance - 1) * 100)}%)</span></div>
     <div className="utilization"><div><span>Margin utilization</span><b>{fmt(utilization, 1)}%</b></div><div className="utilization-track"><span style={{ width: `${utilization}%` }}/></div></div>
-    <dl className="account-details">{[['Wallet balance', fmt(model.balance), 'balance'], ['Available margin', fmt(account.available), 'freeMargin'], ['Margin in use', fmt(account.used), 'usedMargin'], ['Unrealized P&L', signed(account.unrealized), 'pnl'], ['Realized P&L', signed(model.balance - INITIAL_BALANCE), 'realized']].map(([label, value, id]) => <div key={label}><dt>{label}</dt><dd id={id} className={label.includes('P&L') ? tone(id === 'pnl' ? account.unrealized : model.balance - INITIAL_BALANCE) : ''}>{value}</dd></div>)}</dl><div className="journal-save-state"><i/>{replay.recordStatus}</div>
+    <dl className="account-details">{[['Wallet balance', fmt(model.balance), 'balance'], ['Available margin', fmt(account.available), 'freeMargin'], ['Margin in use', fmt(account.used), 'usedMargin'], ['Unrealized P&L', signed(account.unrealized), 'pnl'], ['Realized P&L', signed(model.balance - startingBalance), 'realized']].map(([label, value, id]) => <div key={label}><dt>{label}</dt><dd id={id} className={label.includes('P&L') ? tone(id === 'pnl' ? account.unrealized : model.balance - startingBalance) : ''}>{value}</dd></div>)}</dl><div className="journal-save-state"><i/>{replay.recordStatus}</div>
+    <form className="account-reset" onSubmit={event => { event.preventDefault(); if (replay.resetAccount(Number(resetAmount || startingBalance))) setResetAmount(''); }}>
+      <label htmlFor="startingAmount">Starting amount <span>USDT</span></label>
+      <div><input id="startingAmount" aria-label="Starting amount" type="number" min="0.01" max="1000000000" step="0.01" placeholder={String(startingBalance)} value={resetAmount} onChange={event => setResetAmount(event.target.value)}/><button type="submit" disabled={replay.loading || !model.candles.length}>Reset account</button></div>
+      <small>Clears all open positions and trade records. Keeps the current replay time.</small>
+    </form>
     <SyncStatus replay={replay}/>
   </section>;
 }
@@ -92,6 +111,7 @@ function ProtectionEditor({ position, onSave, onCancel, error }) {
     <ProtectionUnit value={unit} disabled={!useFixed} onChange={value => { setUnit(value); setTp(''); setSl(''); }}/>
     <div className="order-field"><label htmlFor="editTp">Take profit {unit === 'percent' ? '%' : 'USDT'}</label><input autoFocus id="editTp" disabled={!useFixed} type="number" min="0.01" step="any" placeholder="Disabled" value={tp} onChange={event => setTp(event.target.value)}/></div>
     <div className="order-field"><label htmlFor="editSl">Stop loss {unit === 'percent' ? '%' : 'USDT'}</label><input id="editSl" disabled={!useFixed} type="number" min="0.01" step="any" placeholder="Disabled" value={sl} onChange={event => setSl(event.target.value)}/></div>
+    {useFixed && <ProtectionPreview position={position} tp={tp} sl={sl} unit={unit}/>}
     <div className="order-field"><label htmlFor="editTrailing">Trailing distance (%)</label><input id="editTrailing" disabled={!useTrailing} type="number" min="0.01" max="99.99" step="any" placeholder="Disabled" value={trailing} onChange={event => setTrailing(event.target.value)}/></div>
     <small>Select TP/SL, Trailing SL, or both. Uncheck a choice to disable it. Changed trailing distances restart from the current price.</small>
     {error && <p className="negative" role="alert">{error}</p>}
@@ -116,9 +136,10 @@ function Performance({ model }) {
   const trades = model.history, net = trades.reduce((sum, trade) => sum + trade.profit, 0);
   const wins = trades.filter(t => t.profit > 0), losses = trades.filter(t => t.profit < 0);
   const grossProfit = wins.reduce((sum, t) => sum + t.profit, 0), grossLoss = -losses.reduce((sum, t) => sum + t.profit, 0);
-  let balance = INITIAL_BALANCE, peak = balance, drawdown = 0;
+  const startingBalance = model.startingBalance || INITIAL_BALANCE;
+  let balance = startingBalance, peak = balance, drawdown = 0;
   const points = [0];
-  for (const trade of [...trades].reverse()) { balance += trade.profit; peak = Math.max(peak, balance); drawdown = Math.max(drawdown, peak - balance); points.push(balance - INITIAL_BALANCE); }
+  for (const trade of [...trades].reverse()) { balance += trade.profit; peak = Math.max(peak, balance); drawdown = Math.max(drawdown, peak - balance); points.push(balance - startingBalance); }
   const min = Math.min(...points), span = Math.max(...points) - min || 1;
   const line = points.map((value, index) => `${10 + index / Math.max(1, points.length - 1) * 440},${100 - (value - min) / span * 80}`).join(' ');
   const metrics = [
