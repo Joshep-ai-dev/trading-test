@@ -258,7 +258,7 @@ test('hosted deployment loads the OKX catalog and candles without a local archiv
   await expect(page.locator('.sync-status-card')).toContainText('Market data refresh');
   await expect.poll(() => requested.includes('2026-08-09')).toBe(true);
   await page.locator('.header-sync-button').click();
-  await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 12:00 UTC');
+  await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 21:00 GMT+9');
   expect(errors).toEqual([]);
 });
 

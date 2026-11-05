@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { INITIAL_BALANCE, FEE_RATE, pnl, protectionPreview } from './trading.js';
 import { journalCsv } from './journal.js';
+import { displayTime as time } from './display-time.mjs';
 
 export const fmt = (value, digits = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const protectionInput = (value, unit) => value === '' ? null : { value: Number(value), unit };
 const optionalNumber = value => value === '' ? null : Number(value);
 const tone = value => value >= 0 ? 'positive' : 'negative';
 const signed = value => `${value >= 0 ? '+' : ''}${fmt(value)}`;
-const time = timestamp => new Date(timestamp + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
 export function accountValues(model) {
   const price = model.candles[model.index]?.close || 0;

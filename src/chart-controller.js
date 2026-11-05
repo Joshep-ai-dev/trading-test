@@ -6,7 +6,7 @@ const { priceTicks, timeStep, seekIndex, zonedTime, chartWindow, zoomWindow } = 
 export function createChartController(chart, initialOptions = {}) {
   const ctx = chart.getContext('2d');
   const fontFamily = getComputedStyle(chart).fontFamily;
-  let options = { timeframe: 1, timeZone: 'UTC', ...initialOptions };
+  let options = { timeframe: 1, timeZone: 'Asia/Tokyo', ...initialOptions };
   const state = { candles: [], index: 0, rangeStart: 0, positions: [], visibleCount: 120, viewOffset: 0, hoverIndex: null, priceScale: 1, manualPrice: null, indicators: true, drawings: [], tool: 'cursor', draft: null, chartMeta: null };
   let barCache = {}, indicatorCache = {};
   const cleanup = [];

@@ -91,15 +91,7 @@ function ChartPanel({ replay }) {
   }, [indicatorConfig]);
   useEffect(() => { try { localStorage.setItem('argent-indicator-settings', JSON.stringify(indicatorConfig)); } catch {} if (maximizedPane && !indicatorConfig[maximizedPane].enabled) setMaximizedPane(null); }, [indicatorConfig, maximizedPane]);
   useEffect(() => { try { localStorage.setItem('argent-pane-order', JSON.stringify(paneOrder)); } catch {} }, [paneOrder]);
-  const [zone, setZone] = useState(() => {
-    try {
-      if (!localStorage.getItem('argent-gmt9-default')) {
-        localStorage.setItem('argent-time-zone', 'Asia/Tokyo');
-        localStorage.setItem('argent-gmt9-default', '1');
-      }
-      return localStorage.getItem('argent-time-zone') || 'Asia/Tokyo';
-    } catch { return 'Asia/Tokyo'; }
-  });
+  const zone = 'Asia/Tokyo';
   const [timeGrid, setTimeGrid] = useState(0), [priceGrid, setPriceGrid] = useState(0), [jump, setJump] = useState('');
   const [hover, setHover] = useState(null), [view, setView] = useState({ offset: 0, visibleCount: 120 });
   const [syncStatus, setSyncStatus] = useState('');
@@ -110,8 +102,6 @@ function ChartPanel({ replay }) {
   const current = model.candles[model.index], quote = hover || current;
   const stamp = current ? zonedTime(current.timestamp, zone).value.replace('T', ' ') : '—';
   useEffect(() => setHover(null), [model.session]);
-  const zones = useMemo(() => [...new Set(['Asia/Tokyo', 'UTC', Intl.DateTimeFormat().resolvedOptions().timeZone, 'Asia/Shanghai', 'America/New_York', 'Europe/London', ...(Intl.supportedValuesOf?.('timeZone') || [])])], []);
-  const changeZone = value => { setZone(value); try { localStorage.setItem('argent-time-zone', value); } catch {} };
   const goTo = () => {
     const candidates = zonedCandidates(jump, zone);
     const index = candidates.length ? seekIndex(model.candles, candidates[0]) : -1;
@@ -126,9 +116,8 @@ function ChartPanel({ replay }) {
       <div className="timeframe-tabs" id="timeframeTabs">{frames.map(([value, label]) => <button key={value} className={timeframe === value ? 'active' : ''} onClick={() => setTimeframe(value)}>{label}</button>)}</div>
       <div className="chart-view-actions"><button id="zoomOut" className="ghost" title="Zoom out" onClick={() => controller.current?.zoom(15)}>−</button><button id="zoomIn" className="ghost" title="Zoom in" onClick={() => controller.current?.zoom(-15)}>+</button><button id="zoomReset" className="ghost" onClick={() => controller.current?.fit()}>Fit</button><button id="priceZoomReset" className="ghost" onClick={() => controller.current?.autoScale()}>Auto</button></div>
     </div>
-    <details className="chart-preferences"><summary>Chart settings <span>Time zone · Go to date · Grid</span></summary><div className="chart-settings">
-      <label htmlFor="timeZone">TIME ZONE</label><select id="timeZone" value={zone} onChange={event => changeZone(event.target.value)}>{zones.map(value => <option key={value} value={value}>{value === 'Asia/Tokyo' ? 'GMT+9 (Tokyo)' : value}</option>)}</select>
-      <label htmlFor="jumpDate">GO TO ({zone})</label><input id="jumpDate" type="datetime-local" value={jump} onChange={event => setJump(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') goTo(); }}/><button id="jumpBtn" className="ghost" disabled={!current} onClick={goTo}>Go</button>
+    <details className="chart-preferences"><summary>Chart settings <span>Go to date · Grid</span></summary><div className="chart-settings">
+      <label htmlFor="jumpDate">GO TO (GMT+9)</label><input id="jumpDate" type="datetime-local" value={jump} onChange={event => setJump(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') goTo(); }}/><button id="jumpBtn" className="ghost" disabled={!current} onClick={goTo}>Go</button>
       <label htmlFor="timeGrid">TIME GRID</label><select id="timeGrid" value={timeGrid} onChange={event => setTimeGrid(Number(event.target.value))}>{[0, 1, 5, 15, 30, 60, 240, 1440].map(value => <option key={value} value={value}>{value ? `${value} min` : 'Auto'}</option>)}</select>
       <label htmlFor="priceGrid">PRICE GRID</label><select id="priceGrid" value={priceGrid} onChange={event => setPriceGrid(Number(event.target.value))}>{[0, .01, .05, .1, .25, .5, 1, 2, 5].map(value => <option key={value} value={value}>{value || 'Auto'}</option>)}</select>
       {syncStatus && <span className="settings-message">{syncStatus}</span>}
@@ -151,7 +140,7 @@ function ChartPanel({ replay }) {
       <button id="resetBtn" className="ghost" title="Restart replay; keep recorded trades" disabled={!date || replay.loading || !!model.positions.length} onClick={() => replay.loadDate(date)}>↻</button>
       <b id="timeLabel">{stamp}</b>
     </div>
-    <div className="timeline"><span>REPLAY · {zone}</span><input id="scrubber" aria-label="Replay position" type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
+    <div className="timeline"><span>REPLAY · GMT+9</span><input id="scrubber" aria-label="Replay position" type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
   </section>;
 }
 
