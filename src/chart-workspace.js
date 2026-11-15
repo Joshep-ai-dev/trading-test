@@ -14,7 +14,7 @@ export const CHART_TYPES = { candles: 'Candles', hollow: 'Hollow candles', bars:
 export const WORKSPACE_DEFAULTS = {
   chartType: 'candles', timeframe: 1, timeZone: 'Asia/Tokyo', scaleMode: 'linear', showGrid: true,
   showVolume: true, showLastPrice: true, showExecutions: true,
-  drawingColor: '#81dfc2', drawingWidth: 2, magnet: false,
+  drawingColor: '#2962ff', drawingWidth: 2, magnet: false,
   drawingsHidden: false, drawingsLocked: false, stayInDrawingMode: false,
 };
 export function readWorkspace(storage = globalThis.localStorage) {
@@ -121,7 +121,7 @@ export function drawDrawingLayer(ctx, items, draft, selected, m, options, font) 
   ctx.font = `11px ${font}`; ctx.textAlign = 'left'; ctx.setLineDash([]);
   for (const [index, item] of [...items, ...(draft ? [draft] : [])].entries()) {
     const a = drawingPixel(item.a, m, options.timeframe), b = drawingPixel(item.b || item.a, m, options.timeframe);
-    const color = item.color || '#81dfc2';
+    const color = item.color || '#2962ff';
     ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = item.width || 2;
     ctx.beginPath();
     if (item.type === 'horizontal') {
@@ -157,7 +157,7 @@ export function drawDrawingLayer(ctx, items, draft, selected, m, options, font) 
     if (index === selected || item === draft) {
       for (const point of item.b ? [a, b] : [a]) {
         ctx.beginPath(); ctx.arc(point.x, point.y, 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#131722'; ctx.fill(); ctx.strokeStyle = '#b2b5be'; ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = '#000000'; ctx.fill(); ctx.strokeStyle = '#b2b5be'; ctx.lineWidth = 1; ctx.stroke();
       }
     }
   }

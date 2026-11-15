@@ -1,3 +1,4 @@
+import { CHART_THEME as theme } from './chart-theme.js';
 import { INDICATOR_DEFINITIONS, adxTrend } from './indicators.js';
 
 function plot(ctx, values, color, m, y, width = 1) {
@@ -24,19 +25,19 @@ export function drawIndicatorPanes(ctx, data, config, layout, m, font) {
     const y = value => plotBottom - (value - minimum) / (maximum - minimum) * (plotBottom - plotTop);
     ctx.save(); ctx.setLineDash([]); ctx.textAlign = 'left'; ctx.font = `9px ${font}`;
     const parameters = Object.keys(INDICATOR_DEFINITIONS[key].fields).map(field => settings[field]).join(' ');
-    ctx.fillStyle = '#9bb6bf';
+    ctx.fillStyle = theme.text;
     if (!m.windowHeaders) ctx.fillText(`${INDICATOR_DEFINITIONS[key].name} ${parameters}   ${Number.isFinite(series[index]) ? series[index].toFixed(key === 'atr' || key === 'macd' ? 4 : 2) : 'Warming up'}`, m.left + 4, pane.top + 10);
     const ticks = key === 'rsi' ? [30, 50, 70] : key === 'adx' ? [0, 25, 50, 100] : [minimum, 0, maximum].filter((value, i, all) => all.indexOf(value) === i);
     for (const tick of ticks) {
-      ctx.strokeStyle = '#26363d'; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(m.left, y(tick)); ctx.lineTo(m.right, y(tick)); if (m.showGrid !== false) ctx.stroke();
-      ctx.fillStyle = '#6f8b96'; ctx.fillText(tick.toFixed(key === 'atr' || key === 'macd' ? 3 : 0), m.right + 7, y(tick) + 3);
+      ctx.strokeStyle = theme.grid; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(m.left, y(tick)); ctx.lineTo(m.right, y(tick)); if (m.showGrid !== false) ctx.stroke();
+      ctx.fillStyle = theme.muted; ctx.fillText(tick.toFixed(key === 'atr' || key === 'macd' ? 3 : 0), m.right + 7, y(tick) + 3);
     }
     ctx.setLineDash([]); ctx.beginPath(); ctx.rect(m.left, plotTop, m.right - m.left, plotBottom - plotTop); ctx.clip();
     if (key === 'macd') {
       for (let i = m.start; i <= m.end; i++) {
         const value = data.macd.histogram[i]; if (!Number.isFinite(value)) continue;
         const yy = y(value), zero = y(0), width = Math.max(1, m.step * .65);
-        ctx.fillStyle = value >= 0 ? '#64d6b177' : '#ee859577'; ctx.fillRect(m.xFor(i - m.start) - width / 2, Math.min(yy, zero), width, Math.abs(yy - zero));
+        ctx.fillStyle = value >= 0 ? theme.bullish + '77' : theme.bearish + '77'; ctx.fillRect(m.xFor(i - m.start) - width / 2, Math.min(yy, zero), width, Math.abs(yy - zero));
       }
       plot(ctx, data.macd.line, settings.color, m, y, settings.lineWidth); plot(ctx, data.macd.signal, '#e4b56a', m, y, settings.lineWidth);
     } else if (key === 'adx') {
@@ -104,12 +105,12 @@ export function drawPriceIndicators(ctx, data, config, m, font) {
   }
   if (data.supertrend && !config.supertrend.hidden) {
     fillToPrice(ctx, data.supertrend.up, config.supertrend.color, m);
-    fillToPrice(ctx, data.supertrend.down, '#ee8595', m);
+    fillToPrice(ctx, data.supertrend.down, theme.bearish, m);
     plot(ctx, data.supertrend.up, config.supertrend.color, m, m.y, config.supertrend.lineWidth);
-    plot(ctx, data.supertrend.down, '#ee8595', m, m.y, config.supertrend.lineWidth);
+    plot(ctx, data.supertrend.down, theme.bearish, m, m.y, config.supertrend.lineWidth);
   }
   ctx.restore();
-  ctx.save(); ctx.font = `9px ${font}`; ctx.fillStyle = '#8eacb6'; ctx.textAlign = 'left';
+  ctx.save(); ctx.font = `9px ${font}`; ctx.fillStyle = theme.text; ctx.textAlign = 'left';
   let yy = m.top + 12;
   for (const key of ['bb', 'supertrend']) {
     if (!data[key] || config[key].hidden || m.windowHeaders) continue;

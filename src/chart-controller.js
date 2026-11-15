@@ -1,3 +1,4 @@
+import { CHART_THEME as theme } from './chart-theme.js';
 import { WORKSPACE_DEFAULTS, heikinAshi, priceScale, createDrawingHistory, hitDrawing, drawDrawingLayer } from './chart-workspace.js';
 import {
   DEFAULT_INDICATORS,
@@ -113,6 +114,7 @@ export function createChartController(chart, initialOptions = {}) {
     const w = chart.clientWidth,
       h = chart.clientHeight;
     ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = theme.background; ctx.fillRect(0, 0, w, h);
     chart.dataset.visibleBars = String(state.visibleCount);
     if (!state.candles.length) return;
     const bars = chartBars();
@@ -275,13 +277,13 @@ export function createChartController(chart, initialOptions = {}) {
         Number(options.priceGrid || 0),
       )) {
         const yy = y(tick.price);
-        ctx.strokeStyle = "#1b2c32";
+        ctx.strokeStyle = theme.grid;
         ctx.beginPath();
         ctx.moveTo(left, yy);
         ctx.lineTo(right, yy);
         if (options.showGrid) ctx.stroke();
         if (tick.label) {
-          ctx.fillStyle = "#aeb8c4";
+          ctx.fillStyle = theme.text;
           ctx.fillText(priceLabel(tick.price), right + 8, yy + 4);
         }
       }
@@ -309,7 +311,7 @@ export function createChartController(chart, initialOptions = {}) {
       const x = xFor(i);
       if (x - lastGridX < 6) return;
       lastGridX = x;
-      ctx.strokeStyle = "#1b2c32";
+      ctx.strokeStyle = theme.grid;
       ctx.beginPath();
       ctx.moveTo(x, top);
       ctx.lineTo(x, macdBottom);
@@ -319,13 +321,13 @@ export function createChartController(chart, initialOptions = {}) {
       lastLabelX = labelX;
       const date = local.value;
       ctx.textAlign = "center";
-      ctx.fillStyle = "#c1cad5";
+      ctx.fillStyle = theme.text;
       ctx.fillText(date.slice(11, 16), labelX, h - 32);
-      ctx.fillStyle = "#96a4b4";
+      ctx.fillStyle = theme.text;
       ctx.fillText(date.slice(5, 10), labelX, h - 16);
       ctx.textAlign = "left";
     });
-    ctx.fillStyle = "#96a4b4";
+    ctx.fillStyle = theme.text;
     ctx.fillText(
       zonedTime(data[data.length - 1].timestamp, options.timeZone).name,
       right + 4,
@@ -341,7 +343,7 @@ export function createChartController(chart, initialOptions = {}) {
       if (options.chartType === 'line' || options.chartType === 'area') {
         ctx.beginPath();
         data.forEach((c, i) => { if (i) ctx.lineTo(xFor(i), y(c.close)); else ctx.moveTo(xFor(i), y(c.close)); });
-        ctx.strokeStyle = '#42a5f5'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = theme.accent; ctx.lineWidth = 2; ctx.stroke();
         if (options.chartType === 'area') {
           ctx.lineTo(xFor(data.length - 1), bottom); ctx.lineTo(xFor(0), bottom); ctx.closePath();
           const gradient = ctx.createLinearGradient(0, top, 0, bottom);
@@ -350,7 +352,7 @@ export function createChartController(chart, initialOptions = {}) {
         }
       }
       data.forEach((c, i) => {
-        const x = xFor(i), up = c.close >= c.open, col = up ? '#26a69a' : '#ef5350';
+        const x = xFor(i), up = c.close >= c.open, col = up ? theme.bullish : theme.bearish;
         const bw = Math.max(1, step * .62), yt = y(Math.max(c.open, c.close)), bh = Math.max(1, Math.abs(y(c.open) - y(c.close)));
         ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
         if (!['line', 'area'].includes(options.chartType)) {
@@ -360,7 +362,7 @@ export function createChartController(chart, initialOptions = {}) {
             ctx.moveTo(x, y(c.close)); ctx.lineTo(x + bw / 2, y(c.close)); ctx.stroke();
           } else {
             ctx.stroke();
-            if (options.chartType === 'hollow' && up) { ctx.fillStyle = '#0d191d'; ctx.fillRect(x - bw / 2, yt, bw, bh); ctx.strokeRect(x - bw / 2, yt, bw, bh); }
+            if (options.chartType === 'hollow' && up) { ctx.fillStyle = theme.background; ctx.fillRect(x - bw / 2, yt, bw, bh); ctx.strokeRect(x - bw / 2, yt, bw, bh); }
             else ctx.fillRect(x - bw / 2, yt, bw, bh);
           }
         }
@@ -385,23 +387,23 @@ export function createChartController(chart, initialOptions = {}) {
       const last = bars.at(-1),
         ly = y(last.close);
       if (options.showLastPrice && ly >= top && ly <= bottom) {
-        ctx.strokeStyle = "#81dfc2";
-        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = last.close >= last.open ? theme.bullish : theme.bearish;
+        ctx.setLineDash([2, 3]);
         ctx.beginPath();
         ctx.moveTo(left, ly);
         ctx.lineTo(right, ly);
         ctx.stroke();
         ctx.setLineDash([]);
-        ctx.fillStyle = "#81dfc2";
+        ctx.fillStyle = last.close >= last.open ? theme.bullish : theme.bearish;
         ctx.fillRect(right, ly - 11, 76, 22);
-        ctx.fillStyle = "#0d2821";
+        ctx.fillStyle = theme.white;
         ctx.font = `bold 12px ${fontFamily}`;
         ctx.fillText(priceLabel(last.close), right + 5, ly + 4);
       }
       state.positions.forEach((p) => {
         const ey = y(p.entry);
         if (ey >= top && ey <= bottom) {
-          ctx.strokeStyle = p.side === "LONG" ? "#64d6b1" : "#ee8595";
+          ctx.strokeStyle = p.side === "LONG" ? theme.bullish : theme.bearish;
           ctx.setLineDash([7, 4]);
           ctx.beginPath();
           ctx.moveTo(left, ey);
@@ -431,7 +433,7 @@ export function createChartController(chart, initialOptions = {}) {
           state.crosshairY ?? y(hc.close),
         ),
       );
-      ctx.strokeStyle = "#7d858e";
+      ctx.strokeStyle = theme.crosshair;
       ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(x, top);
@@ -442,9 +444,9 @@ export function createChartController(chart, initialOptions = {}) {
       ctx.setLineDash([]);
       if (!maximized) {
         const pointerPrice = priceAtY(hy);
-        ctx.fillStyle = "#454c54";
+        ctx.fillStyle = theme.crosshairLabel;
         ctx.fillRect(right, hy - 11, 76, 22);
-        ctx.fillStyle = "#f0f2f4";
+        ctx.fillStyle = theme.white;
         ctx.font = `12px ${fontFamily}`;
         ctx.fillText(priceLabel(pointerPrice), right + 5, hy + 4);
       }
@@ -455,9 +457,9 @@ export function createChartController(chart, initialOptions = {}) {
       ctx.textAlign = "center";
       const width = Math.max(58, ctx.measureText(label).width + 16),
         labelX = Math.max(left + width / 2, Math.min(right - width / 2, x));
-      ctx.fillStyle = "#454c54";
+      ctx.fillStyle = theme.crosshairLabel;
       ctx.fillRect(labelX - width / 2, h - 47, width, 36);
-      ctx.fillStyle = "#f0f2f4";
+      ctx.fillStyle = theme.white;
       ctx.fillText(label, labelX, h - 25);
       ctx.textAlign = "left";
     }
@@ -570,8 +572,8 @@ export function createChartController(chart, initialOptions = {}) {
     ctx.textAlign = "left";
     for (const p of state.positions) {
       for (const [label, price, color] of [
-        ["TP", p.tp, "#81dfc2"],
-        ["SL", p.sl, "#ee8595"],
+        ["TP", p.tp, theme.bullish],
+        ["SL", p.sl, theme.bearish],
         ["TRAIL", p.trailingStop, "#d2b480"],
       ]) {
         if (!price) continue;
@@ -611,7 +613,7 @@ export function createChartController(chart, initialOptions = {}) {
       const buy = fill.side === "BUY";
       const y =
         m.y(buy ? m.bars[index].low : m.bars[index].high) + (buy ? 14 : -14);
-      ctx.fillStyle = buy ? "#8ae7c7" : "#ee8595";
+      ctx.fillStyle = buy ? theme.bullish : theme.bearish;
       ctx.beginPath();
       ctx.moveTo(x, y + (buy ? -5 : 5));
       ctx.lineTo(x - 4, y + (buy ? 3 : -3));

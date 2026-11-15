@@ -1,0 +1,154 @@
+/* Final color layer; layout and stylesheet ordering remain in exchange.css. */
+:root {
+  --bg:#000; --panel:#000; --panel2:#171717; --line:#2a2a2a;
+  --text:#d1d4dc; --muted:#787b86; --gold:#2962ff;
+  --green:#089981; --red:#f23645;
+}
+body,.exchange-header,.market-strip,.exchange-footer { background:#000; }
+.exchange-workspace { background:#161616; }
+.exchange-ticket,.account-summary,.trading-ledger,.exchange-sidebar { background:#080808; border-color:#2a2a2a; }
+.exchange-brand,.market-identity h1,.market-price>strong { color:#d1d4dc; }
+.exchange-logo,.exchange-brand strong>span { color:#2962ff; }
+.exchange-header nav button.selected:after { background:#2962ff; }
+.paper-badge { color:#b2b5be; border-color:#363636; }
+
+.exchange-workspace .resizable-chart .chart-panel.chart-workspace,
+.exchange-workspace .resizable-chart .chart-panel.chart-expanded,
+.chart-workspace .chart-wrap,.chart-workspace .chart-toolbar,
+.chart-workspace .quote-strip,.chart-workspace .chart-preferences,
+.chart-workspace .replay-controls,.chart-workspace .timeline { background:#000; border-color:#2a2a2a; }
+.chart-workspace { --workspace-accent:#2962ff; color:#d1d4dc; }
+.chart-workspace .workspace-tools { background:#080808; border-color:#2a2a2a; }
+.chart-workspace .drawing-tools { background:#080808; border-color:#2a2a2a; }
+.chart-workspace .drawing-tools button,.chart-workspace .workspace-tools button,
+.chart-workspace .chart-actions button,.chart-workspace .chart-view-actions button,
+.chart-workspace .timeframe-tabs button { color:#b2b5be; }
+.chart-workspace .chart-title,.chart-workspace .indicator-library-trigger { color:#d1d4dc; }
+.chart-workspace .drawing-tools button.active,
+.chart-workspace .workspace-tools button[aria-pressed=true],
+.chart-workspace .workspace-tools button[aria-expanded=true],
+.chart-workspace #priceZoomReset[aria-pressed=true] { color:#2962ff; background:#2962ff26; }
+.chart-workspace .timeframe-tabs button.active { background:#2a2a2a; color:#d1d4dc; }
+.chart-workspace .drawing-tools button:hover,.chart-workspace .workspace-tools button:hover,
+.chart-workspace .chart-actions button:hover,.chart-workspace .chart-view-actions button:hover,
+.chart-workspace .timeframe-tabs button:hover { background:#242424; color:#e0e3eb; }
+.chart-workspace .workspace-divider,.chart-workspace .drawing-tools>span { background:#363636; }
+.chart-workspace .workspace-tools select,.chart-workspace .chart-settings input,
+.chart-workspace .chart-settings select,.chart-workspace .replay-controls select,
+.chart-workspace .replay-controls input,.chart-workspace .drawing-text {
+  background:#101010; color:#d1d4dc; border-color:#363636; color-scheme:dark;
+}
+.chart-workspace .chart-settings { background:#101010; }
+.chart-workspace .chart-preferences summary,.chart-workspace .chart-preferences summary span,
+.chart-workspace .quote-strip small,.chart-workspace .workspace-text-button small { color:#787b86; }
+.chart-workspace .chart-settings label,.chart-workspace .chart-legend,
+.chart-workspace .chart-legend b,.chart-workspace .quote-strip b,
+.chart-workspace .replay-controls b,.chart-workspace .replay-mode,
+.chart-workspace .timeline { color:#b2b5be; }
+.chart-workspace .chart-actions { border-color:#2a2a2a; }
+.chart-workspace .replay-controls .ghost { color:#b2b5be; border-color:#363636; }
+.chart-workspace .replay-controls .play { background:#2962ff; color:#fff; }
+.chart-workspace .replay-mode i { background:#2962ff; }
+.chart-workspace .timeline input { accent-color:#2962ff; }
+.chart-workspace .go-live { background:#181818; border-color:#363636; color:#b2b5be; }
+.chart-workspace .indicator-height-handle,.chart-height-handle { border-color:#2a2a2a; background:#080808; color:#787b86; }
+.chart-workspace .indicator-height-handle span,.chart-height-handle span { background:#505050; }
+.chart-workspace .study-pane-name { background:#000c; color:#b2b5be; }
+.chart-workspace .study-pane-name span { color:#787b86; }
+.chart-workspace .study-pane-name b { color:#d1d4dc; }
+.chart-workspace .study-pane-name:hover { background:#242424; }
+.chart-workspace .study-pane-controls button { color:#b2b5be; }
+.chart-workspace .study-pane-controls button:first-child { color:#b2b5be; }
+.chart-workspace .study-pane-header:hover .study-pane-controls,
+.chart-workspace .study-pane-header:focus-within .study-pane-controls { background:#181818; border-color:#363636; }
+.chart-workspace .study-pane-controls button:hover { background:#2a2a2a; color:#fff; }
+
+.chart-workspace .workspace-popover,.chart-workspace .chart-context-menu,
+.chart-workspace .indicator-library,.chart-workspace .study-settings-window { background:#171717; border-color:#363636; color:#d1d4dc; }
+.chart-workspace .workspace-popover-heading,.chart-workspace .workspace-setting,
+.chart-workspace .study-settings-tabs,.chart-workspace .study-window-actions,
+.chart-workspace .library-body,.chart-workspace .library-footer { border-color:#363636; }
+.chart-workspace .workspace-setting select,.chart-workspace .study-input-row input,
+.chart-workspace .study-input-row select,.chart-workspace .library-search { background:#101010; border-color:#363636; color:#d1d4dc; }
+.chart-workspace .workspace-setting,.chart-workspace .study-input-row,
+.chart-workspace .study-check-row,.chart-workspace .workspace-popover p,
+.chart-workspace .study-settings-body p,.chart-workspace .library-footer,
+.chart-workspace .library-study-name>span,.chart-workspace .library-study-name strong>small { color:#b2b5be; }
+.chart-workspace .workspace-setting input,.chart-workspace .study-check-row input { accent-color:#2962ff; }
+.chart-workspace .workspace-reset,.chart-workspace .study-window-actions button,
+.chart-workspace .library-add,.chart-workspace .library-configure { background:#242424; border-color:#434343; color:#d1d4dc; }
+.chart-workspace .study-window-actions button[type=submit] { background:#2962ff; border-color:#2962ff; color:#fff; }
+.chart-workspace .study-settings-tabs button.active:after { background:#2962ff; }
+.chart-workspace .study-settings-tabs button.active,.chart-workspace .library-heading h2,
+.chart-workspace .library-study-name { color:#d1d4dc; }
+.chart-workspace .library-body>nav { background:#101010; border-color:#363636; }
+.chart-workspace .library-body>nav button.active { background:#2962ff26; color:#82a6ff; }
+.chart-workspace .library-study { border-color:#2a2a2a; }
+.chart-workspace .library-study:hover { background:#242424; }
+.chart-workspace .library-search:focus-within { border-color:#2962ff; }
+.chart-workspace .chart-context-menu button { color:#d1d4dc; }
+.chart-workspace .chart-context-menu button:hover,.chart-workspace .chart-context-menu button:focus { background:#2a2a2a; color:#fff; }
+
+/* Order entry and account controls use the same neutral palette as the chart. */
+.exchange-sidebar .ticket-heading>span,.exchange-sidebar .margin-controls label,
+.exchange-sidebar .order-type>small,.exchange-sidebar .available-balance,
+.exchange-sidebar .available-balance small,.exchange-sidebar .order-field label,
+.exchange-sidebar .order-field label>span,.exchange-sidebar .order-field>div>span,
+.exchange-sidebar .ticket-protection small,.exchange-sidebar .protection-unit label,
+.exchange-sidebar .protection-unit small,.exchange-sidebar .order-estimates dt,
+.exchange-sidebar .account-details dt,.exchange-sidebar .equity-label,
+.exchange-sidebar .equity-value small,.exchange-sidebar .utilization>div:first-child,
+.exchange-sidebar .sync-status-card span,.exchange-sidebar .sync-status-card p,
+.exchange-sidebar .account-reset label,.exchange-sidebar .account-reset small { color:#90939c; }
+.exchange-sidebar .ticket-heading h2,.exchange-sidebar .section-heading h2,
+.exchange-sidebar .ticket-protection>span,.exchange-sidebar .available-balance b,
+.exchange-sidebar .order-estimates dd,.exchange-sidebar .account-details dd,
+.exchange-sidebar .sync-status-card strong,.exchange-sidebar .sync-status-card p>b,
+.exchange-sidebar .utilization b { color:#d1d4dc; }
+.exchange-sidebar .margin-controls>span,.exchange-sidebar .margin-controls select,
+.exchange-sidebar .allocation-buttons button,.exchange-sidebar .protection-choices label,
+.exchange-sidebar .protection-unit select,.exchange-sidebar .account-reset input {
+  background:#171717; border-color:#363636; color:#b2b5be; color-scheme:dark;
+}
+.exchange-sidebar .order-field>div,.exchange-sidebar .order-field input {
+  background:#101010; border-color:#363636; color:#d1d4dc;
+}
+.exchange-sidebar .order-field>div input { border:0; background:transparent; }
+.exchange-sidebar .order-field input::placeholder,.exchange-sidebar .account-reset input::placeholder { color:#787b86; opacity:1; }
+.exchange-sidebar .order-field input:disabled,.exchange-sidebar .protection-unit select:disabled { opacity:.5; }
+.exchange-sidebar .order-field>div:focus-within,.exchange-sidebar .order-field input:focus,
+.exchange-sidebar .allocation-buttons button:hover { border-color:#2962ff; }
+.exchange-sidebar .allocation-buttons button:hover { background:#2962ff26; color:#d1d4dc; }
+.exchange-sidebar .protection-choices input { accent-color:#2962ff; }
+.exchange-sidebar .protection-choices label:has(input:checked) { border-color:#2962ff; background:#2962ff26; color:#d1d4dc; }
+.exchange-sidebar .buy-button { color:#fff; background:#2962ff; }
+.exchange-sidebar .sell-button { color:#fff; background:#f23645; }
+.exchange-sidebar .buy-button:hover { background:#1e53e5; }
+.exchange-sidebar .sell-button:hover { background:#d92e3c; }
+.exchange-sidebar .buy-button:disabled,.exchange-sidebar .sell-button:disabled { opacity:.4; }
+.exchange-sidebar .ticket-disclaimer { color:#787b86; }
+.exchange-sidebar .ticket-disclaimer i { background:#787b86; }
+.exchange-sidebar .small-badge { color:#b2b5be; border-color:#363636; }
+.exchange-sidebar .utilization-track { background:#2a2a2a; }
+.exchange-sidebar .utilization-track>span { background:#2962ff; }
+.exchange-sidebar .journal-save-state { color:#90939c; }
+.exchange-sidebar .account-reset button,.exchange-sidebar .sync-status-card button,
+.header-sync-button { background:#171717; border-color:#363636; color:#d1d4dc; }
+.exchange-sidebar .account-reset button:hover,.exchange-sidebar .sync-status-card button:hover,
+.header-sync-button:hover { background:#242424; border-color:#2962ff; }
+
+/* Argent identity: geometric monogram, silver wordmark, forward slash. */
+.exchange-brand { display:inline-flex; align-items:center; gap:10px; flex-shrink:0; border-radius:4px; }
+.argent-mark { display:block; width:36px; height:36px; flex-shrink:0; }
+.argent-wordmark { display:inline-flex; align-items:center; gap:9px; color:#e0e3eb; font-family:Arial,Helvetica,sans-serif; font-size:28px; font-weight:700; letter-spacing:-1.3px; line-height:1; }
+.argent-signature { display:block; width:4px; height:22px; background:#2962ff; transform:skew(-17deg); margin-right:4px; }
+.exchange-brand:hover .argent-wordmark { color:#fff; }
+@media(max-width:540px) {
+  .exchange-header { gap:12px; }
+  .exchange-header nav { gap:12px; }
+  .exchange-brand { gap:6px; }
+  .argent-mark { width:25px; height:25px; }
+  .argent-wordmark { font-size:23px; letter-spacing:-1px; gap:6px; }
+  .argent-signature { width:3px; height:17px; margin-right:2px; }
+}
+@media(max-width:360px) { .header-right .paper-badge { display:none; } }

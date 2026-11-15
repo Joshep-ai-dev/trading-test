@@ -9,7 +9,7 @@ test('Auto fits visible highs and lows while panning, but hover never changes th
       return clear.apply(this, args);
     };
     CanvasRenderingContext2D.prototype.fillText = function (label, x, y, ...rest) {
-      if (this.canvas.id === 'chart' && this.fillStyle === '#aeb8c4' && x >= this.canvas.clientWidth - 78) window.axisTicks.push([label, y]);
+      if (this.canvas.id === 'chart' && this.fillStyle === '#b2b5be' && x >= this.canvas.clientWidth - 78) window.axisTicks.push([label, y]);
       return text.call(this, label, x, y, ...rest);
     };
   });

@@ -42,7 +42,7 @@ export function WorkspaceToolbar({ settings, update, drawings, controller, expan
       {panel === 'objects' && <>
         {!drawings.items.length && <p>No drawings yet. Choose a tool on the left, then click the chart.</p>}
         <div className="drawing-object-list">{drawings.items.map((item, index) => <div className={drawings.selected === index ? 'selected' : ''} key={index}>
-          <button aria-label={`Select drawing ${index + 1}`} onClick={() => controller.current?.selectDrawing(index)}><i style={{ background: item.color || '#81dfc2' }}/><span>{item.text || DRAWING_TOOLS.find(([key]) => key === item.type)?.[2]?.split(':')[0] || item.type}</span><small>#{index + 1}</small></button>
+          <button aria-label={`Select drawing ${index + 1}`} onClick={() => controller.current?.selectDrawing(index)}><i style={{ background: item.color || '#2962ff' }}/><span>{item.text || DRAWING_TOOLS.find(([key]) => key === item.type)?.[2]?.split(':')[0] || item.type}</span><small>#{index + 1}</small></button>
           <button aria-label={`Delete drawing ${index + 1}`} disabled={settings.drawingsLocked} onClick={() => controller.current?.deleteDrawing(index)}><ChartIcon name="close" size={16}/></button>
         </div>)}</div>
         <button className="workspace-reset" disabled={!drawings.items.length || settings.drawingsLocked} onClick={() => controller.current?.clearDrawings()}>Remove all drawings</button>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import ArgentLogo from './ArgentLogo.jsx';
 import { INITIAL_BALANCE, FEE_RATE, pnl, protectionPreview } from './trading.js';
 import { journalCsv } from './journal.js';
 import { displayTime as time } from './display-time.mjs';
@@ -18,7 +19,7 @@ export function accountValues(model) {
 
 export function ExchangeHeader({ replay, tab, onNavigate }) {
   return <header className="exchange-header">
-    <a className="exchange-brand" href="#" onClick={event => { event.preventDefault(); onNavigate('positions'); }}><span className="exchange-logo">a<span/></span><strong>argent<span> / </span></strong></a>
+    <a className="exchange-brand" href="#" aria-label="Argent Replay home" onClick={event => { event.preventDefault(); onNavigate('positions'); }}><ArgentLogo/></a>
     <nav aria-label="Main navigation"><button className={tab === 'positions' ? 'selected' : ''} onClick={() => onNavigate('positions')}>Trade</button><button className={tab === 'fills' ? 'selected' : ''} onClick={() => onNavigate('fills')}>Activity</button><button className={tab === 'performance' ? 'selected' : ''} onClick={() => onNavigate('performance')}>Performance</button></nav>
     <div className="header-right"><span className="connection-badge"><i/>{replay.dataMode === 'hosted' ? 'OKX data' : 'Local archive'}</span><button className="header-sync-button" disabled={replay.syncState.running} onClick={replay.syncNow}>{replay.syncState.running ? 'Syncing…' : 'Sync now'}</button><span className="paper-badge">PAPER TRADING</span><div className="account-avatar" title="Local paper account">AG</div></div>
   </header>;

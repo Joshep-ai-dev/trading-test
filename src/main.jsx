@@ -5,5 +5,6 @@ import '../styles.css';
 import '../chart-tools.css';
 import '../terminal.css';
 import './exchange.css';
+import './tradingview-theme.css';
 
 createRoot(document.getElementById('root')).render(<App/>);

@@ -87,6 +87,8 @@ test('chart types, scales, timezone, fullscreen, context menu and replay shortcu
 test('mobile workspace panels and drawing toolbar fit the screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/'); await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect(page.getByRole('link', { name: 'Argent Replay home' })).toBeVisible();
+  await expect.poll(() => page.locator('.argent-mark').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
   await page.getByRole('button', { name: 'Chart display settings', exact: true }).click();
   await expect(page.getByLabel('Chart time zone', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
