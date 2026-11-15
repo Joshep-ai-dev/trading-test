@@ -1,4 +1,4 @@
-import { INDICATOR_DEFINITIONS } from './indicators.js';
+import { INDICATOR_DEFINITIONS, adxTrend } from './indicators.js';
 
 function plot(ctx, values, color, m, y, width = 1) {
   ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath();
@@ -40,7 +40,31 @@ export function drawIndicatorPanes(ctx, data, config, layout, m, font) {
       }
       plot(ctx, data.macd.line, settings.color, m, y, settings.lineWidth); plot(ctx, data.macd.signal, '#e4b56a', m, y, settings.lineWidth);
     } else if (key === 'adx') {
-      plot(ctx, data.adx.plus, '#64d6b1', m, y, settings.lineWidth); plot(ctx, data.adx.minus, '#ee8595', m, y, settings.lineWidth); plot(ctx, data.adx.line, settings.color, m, y, settings.lineWidth);
+      for (let i = m.start; i <= m.end; i++) {
+        const plus = data.adx.plus[i], minus = data.adx.minus[i];
+        if (!Number.isFinite(plus) || !Number.isFinite(minus)) continue;
+        ctx.fillStyle = plus > minus ? '#4caf501a' : '#f236451a';
+        ctx.fillRect(m.xFor(i - m.start) - m.step / 2, plotTop, m.step, plotBottom - plotTop);
+      }
+      if (settings.displayDILines) {
+        plot(ctx, data.adx.plus, '#00e676', m, y, 1);
+        plot(ctx, data.adx.minus, '#f23645', m, y, 1);
+      }
+      for (let i = Math.max(1, m.start); i <= m.end; i++) {
+        const previous = data.adx.line[i - 1], value = data.adx.line[i], trend = adxTrend(value);
+        if (!trend || !Number.isFinite(previous)) continue;
+        ctx.strokeStyle = trend.color; ctx.lineWidth = settings.lineWidth;
+        ctx.beginPath(); ctx.moveTo(m.xFor(i - 1 - m.start), y(previous));
+        ctx.lineTo(m.xFor(i - m.start), y(value)); ctx.stroke();
+      }
+      const last = m.bars.length - 1, trend = adxTrend(data.adx.line[last]);
+      if (trend && last >= m.start && last <= m.end) {
+        const width = ctx.measureText(trend.label).width + 12;
+        const x = Math.max(m.left, Math.min(m.right - width, m.xFor(last - m.start) - width / 2));
+        const yy = Math.max(plotTop, Math.min(plotBottom - 18, y(data.adx.line[last]) + 4));
+        ctx.fillStyle = trend.color; ctx.fillRect(x, yy, width, 18);
+        ctx.fillStyle = '#ffffff'; ctx.fillText(trend.label, x + 6, yy + 12);
+      }
     } else plot(ctx, series, settings.color, m, y, settings.lineWidth);
     ctx.restore();
   }

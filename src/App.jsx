@@ -7,7 +7,7 @@ import { createChartController } from './chart-controller.js';
 import { ExchangeHeader, MarketStrip, OrderTicket, TradingLedger, AccountSummary } from './TradingPanels.jsx';
 
 const fmt = (value, digits = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
-const frames = [[1, '1m'], [5, '5m'], [10, '10m'], [15, '15m'], [30, '30m'], [60, '1H'], [240, '4H'], [1440, '1D']];
+const frames = [[1, '1m'], [3, '3m'], [5, '5m'], [10, '10m'], [15, '15m'], [30, '30m'], [60, '1H'], [240, '4H'], [1440, '1D']];
 const tools = [['cursor', '＋', 'Crosshair / Pan (Esc)'], ['trend', '╱', 'Trend line: click two points'], ['horizontal', '―', 'Horizontal line'], ['measure', '↔', 'Measure: click two points'], ['text', 'T', 'Add text'], ['zoom', '⌕', 'Zoom at pointer'], ['delete', '⌫', 'Delete all drawings']];
 const { zonedTime, zonedCandidates, seekIndex } = globalThis.ChartUtils;
 

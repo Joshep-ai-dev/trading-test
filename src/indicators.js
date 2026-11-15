@@ -2,12 +2,12 @@ export const INDICATOR_DEFINITIONS = {
   rsi: { name: 'RSI', pane: true, fields: { period: ['Length', 14, 2, 500, 1] } },
   macd: { name: 'MACD', pane: true, fields: { fast: ['Fast length', 12, 2, 500, 1], slow: ['Slow length', 26, 3, 500, 1], signal: ['Signal length', 9, 2, 500, 1] } },
   atr: { name: 'ATR', pane: true, fields: { period: ['Length', 14, 2, 500, 1] } },
-  adx: { name: 'ADX', pane: true, fields: { period: ['DI length', 14, 2, 500, 1], smoothing: ['ADX smoothing', 14, 2, 500, 1] } },
+  adx: { name: 'ADX', pane: true, fields: { period: ['DI length', 14, 1, 500, 1], smoothing: ['ADX smoothing', 14, 1, 500, 1] } },
   supertrend: { name: 'Supertrend', pane: false, fields: { period: ['ATR length', 10, 2, 500, 1], multiplier: ['Factor', 3, .1, 20, .1] } },
   bb: { name: 'Bollinger Bands', pane: false, fields: { period: ['Length', 20, 2, 500, 1], deviations: ['Standard deviations', 2, .1, 10, .1] } },
 };
 const COLORS = { rsi: '#b196ee', macd: '#6bb6ef', atr: '#66cddd', adx: '#e4b56a', supertrend: '#64d6b1', bb: '#719ee0' };
-export const DEFAULT_INDICATORS = Object.fromEntries(Object.entries(INDICATOR_DEFINITIONS).map(([key, definition]) => [key, { enabled: key === 'rsi' || key === 'macd', hidden: false, color: COLORS[key], lineWidth: 1, showValue: true, ...Object.fromEntries(Object.entries(definition.fields).map(([field, settings]) => [field, settings[1]])) }]));
+export const DEFAULT_INDICATORS = Object.fromEntries(Object.entries(INDICATOR_DEFINITIONS).map(([key, definition]) => [key, { enabled: key === 'rsi' || key === 'macd', hidden: false, color: COLORS[key], lineWidth: key === 'adx' ? 2 : 1, showValue: true, ...(key === 'adx' ? { displayDILines: false } : {}), ...Object.fromEntries(Object.entries(definition.fields).map(([field, settings]) => [field, settings[1]])) }]));
 
 export function validateIndicators(config) {
   const result = {};
@@ -15,6 +15,7 @@ export function validateIndicators(config) {
     const color = config[key]?.color ?? COLORS[key], lineWidth = Number(config[key]?.lineWidth ?? 1);
     if (!/^#[0-9a-f]{6}$/i.test(color) || !Number.isFinite(lineWidth) || lineWidth < 1 || lineWidth > 4) throw new Error(`${definition.name}: choose a valid color and line width between 1 and 4.`);
     result[key] = { enabled: !!config[key]?.enabled, hidden: !!config[key]?.hidden, color, lineWidth, showValue: config[key]?.showValue !== false };
+    if (key === 'adx') result[key].displayDILines = config[key]?.displayDILines === true;
     for (const [field, [label, , min, max, step]] of Object.entries(definition.fields)) {
       const value = Number(config[key]?.[field]);
       if (!Number.isFinite(value) || value < min || value > max || (step === 1 && !Number.isInteger(value))) throw new Error(`${definition.name}: ${label} must be ${step === 1 ? 'an integer ' : ''}between ${min} and ${max}.`);
@@ -134,4 +135,14 @@ export function indicatorLayout(height, config, requested = {}, visible = true, 
   let y = bottom;
   const panes = keys.map(key => { const pane = { key, divider: y + 9, top: y + 18, bottom: y + 18 + sizes[key], height: sizes[key] }; y = pane.bottom; return pane; });
   return { bottom, panes, budget, minimum, ...sizes };
+}
+
+// Adapted from ADX Trend Strength Visualizer, MPL-2.0, ? ggs92.
+export function adxTrend(value) {
+  if (!Number.isFinite(value)) return null;
+  if (value < 20) return { color: '#2196f3', label: 'Weak' };
+  if (value < 25) return { color: '#4caf50', label: 'Emerging' };
+  if (value < 50) return { color: '#ffeb3b', label: 'Strong' };
+  if (value < 75) return { color: '#ff9800', label: 'Very Strong' };
+  return { color: '#f23645', label: 'Extremely Strong' };
 }

@@ -79,3 +79,16 @@ test('study styles validate and hidden panes retain their order and space', asyn
   config.rsi.color = 'invalid';
   assert.throws(() => validateIndicators(config), /color/);
 });
+
+test('ADX visualizer bands and optional DI settings match the supplied study', async () => {
+  const { adxTrend, adx, DEFAULT_INDICATORS, validateIndicators } = await import('../src/indicators.js');
+  assert.equal(adxTrend(null), null);
+  assert.deepEqual([0, 19.99, 20, 24.99, 25, 49.99, 50, 74.99, 75, 100].map(value => adxTrend(value).label),
+    ['Weak', 'Weak', 'Emerging', 'Emerging', 'Strong', 'Strong', 'Very Strong', 'Very Strong', 'Extremely Strong', 'Extremely Strong']);
+  const config = structuredClone(DEFAULT_INDICATORS);
+  assert.equal(config.adx.lineWidth, 2);
+  assert.equal(validateIndicators(config).adx.displayDILines, false);
+  config.adx.displayDILines = true; config.adx.period = 1; config.adx.smoothing = 1;
+  assert.equal(validateIndicators(config).adx.displayDILines, true);
+  assert.equal(adx(barsOf([10, 11]), 1, 1).line[1], 100);
+});
