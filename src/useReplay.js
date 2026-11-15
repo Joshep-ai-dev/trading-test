@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DAY, dateOf, mergeCandles, prependHistory, readLocalDay } from './data.js';
+import { DAY, dateOf, mergeCandles, prependHistory, readLocalDay, readDays } from './data.js';
 import { INITIAL_BALANCE, closeTrade, enterTrade, settleCandle, updateProtection, resetAccount } from './trading.js';
 import { readJournal, writeJournal } from './journal.js';
 
@@ -56,8 +56,7 @@ export function useReplay() {
         return (timestamp >= start && timestamp < start + DAY * 7) || day === restoreDate;
       });
       if (!selectedDays.length) throw new Error(modeRef.current === 'hosted' ? 'Choose a date within the available OKX history.' : 'No local candles for this week. Select a saved date or run npm run download:data.');
-      let candles = [];
-      for (const day of selectedDays) candles = mergeCandles(candles, await readDay(day, signal));
+      const candles = await readDays(selectedDays, readDay, signal);
       if (session !== generation.current) return;
       historyCursor.current = selectedDays[0]; nextCursor.current = selectedDays.at(-1);
       if (!candles.length) throw new Error('No candles are available for this week. Choose another date.');
@@ -109,7 +108,9 @@ export function useReplay() {
       setSyncState(previous => ({ ...result, lastSync: result.lastSync || previous.lastSync, nextSync: result.nextSync || previous.nextSync, latestCandle: latest }));
       if (latest && latest !== lastWatermark.current) {
         lastWatermark.current = latest;
-        cache.current.clear();
+        // Preserve completed history; refresh only the mutable archive tail.
+        const changedDate = dateOf(Date.parse(latest));
+        for (const day of cache.current.keys()) if (day >= changedDate) cache.current.delete(day);
         const current = ref.current, session = generation.current;
         if (current.candles.length && current.candles.at(-1).timestamp >= Date.now() - DAY * 2 && !historyBusy.current && !nextBusy.current) {
           const lastDate = dateOf(current.candles.at(-1).timestamp);
@@ -139,14 +140,13 @@ export function useReplay() {
     const current = ref.current;
     if (historyBusy.current || !current.candles.length) return;
     const earliest = historyCursor.current;
-    const days = available.current.filter(day => day < earliest).slice(-7);
+    const days = available.current.filter(day => day < earliest).slice(-30);
     if (!days.length) return;
     historyBusy.current = true;
     const session = generation.current;
     setStatus(modeRef.current === 'hosted' ? 'Loading older OKX candles…' : 'Reading older candles from local files…');
     try {
-      let rows = [];
-      for (const day of days) rows.push(...await readDay(day, controller.current.signal));
+      const rows = await readDays(days, readDay, controller.current.signal);
       if (session !== generation.current) return;
       historyCursor.current = days[0];
       commit(previous => prependHistory(previous, rows));
@@ -186,6 +186,17 @@ export function useReplay() {
     return () => clearInterval(timer);
   }, [playing, speed, commit, loadNext]);
 
+  const togglePlay = useCallback(() => { if (ref.current.candles.length) setPlaying(value => !value); }, []);
+  const step = useCallback(() => {
+    setPlaying(false);
+    const current = ref.current;
+    if (!current.candles.length) return;
+    if (current.index >= current.candles.length - 1) { loadNext(); return; }
+    const index = current.index + 1;
+    commit(settleCandle({ ...current, index }, current.candles[index]));
+    if (index > current.candles.length - 60) loadNext();
+  }, [commit, loadNext]);
+
   const seek = index => {
     if (ref.current.positions.length) { setStatus('Close open positions before seeking.'); return; }
     setPlaying(false);
@@ -220,7 +231,7 @@ export function useReplay() {
       setRemovedRecord(null);
       setStatus('History item restored.');
     },
-    togglePlay: () => { if (ref.current.candles.length) setPlaying(value => !value); },
+    togglePlay, step,
     enter(side, margin, leverage, sl, tp, trailingPercent) {
       try { commit(enterTrade(ref.current, side, margin, leverage, sl, tp, trailingPercent)); setStatus(`${side} order opened`); }
       catch (error) { setStatus(error.message); }

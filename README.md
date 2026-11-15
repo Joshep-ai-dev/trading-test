@@ -29,7 +29,9 @@ triggers the independent background downloader; the chart still reads saved
 files only. Internet access to OKX is needed for downloading, not for replay.
 
 The app selects a saved week by default and remembers your date selection.
-Pan/scroll left to read earlier days from local files in seven-day batches.
+Pan/scroll left to preload earlier days from local files in batches of up to 30 days.
+Completed days are cached in the browser across reloads; history requests use
+bounded concurrency. Today's data stays fresh, and sync retains completed history.
 The visible timestamps, replay cursor, balances, and open positions are preserved.
 Hover updates the OHLC readout and candle time. Future replay candles stay hidden
 until playback or seeking reaches them. Playback appends newer saved days as needed.
@@ -37,11 +39,41 @@ Missing/empty archive dates are handled without online chart requests.
 
 Mouse wheel zooms around the pointer; drag the chart to pan. Shift-wheel or
 horizontal trackpad scrolling pans. Drag price/time axes to scale them. Double-click
-the price axis to restore auto scale. Drawing tools support trend lines, horizontal
-lines, measurement, and text; Escape cancels and Delete removes the last drawing.
-RSI/MACD can be toggled. Chart settings include time zone, grid spacing, and time
-jump. Close positions before seeking. Selecting a new week or restarting replay keeps recorded trades and balance.
+the price axis to restore auto scale. Two-finger pinch zooms on touch screens.
+Close positions before seeking. Selecting a new week or restarting replay keeps recorded trades and balance.
 Close open positions before changing the replay date.
+
+## Chart workspace
+
+The native chart workspace supports candles, hollow candles, OHLC bars, line,
+area, and Heikin Ashi, with intervals including 3m. Heikin Ashi affects display
+only; order settlement, the OHLC readout, and indicators use real market candles.
+Settings include regular/logarithmic/percentage price scales, time zone, grid,
+volume, last-price line, and trade markers. Percentage labels use the first
+visible candle's close as their reference. Appearance and interval persist locally.
+Auto fits the visible candle highs/lows and overlays while panning or zooming;
+hovering does not change the scale. Scaling the price axis manually disables
+Auto until the Auto or Fit button is pressed. Slightly diagonal chart drags keep
+Auto enabled.
+
+The left toolbar includes trend lines, rays, horizontal/vertical lines,
+rectangles, Fibonacci retracements, measurement, text, and zoom. Click twice
+for drawings with two anchors. In crosshair mode, select and drag a drawing or
+its handles to edit it. Use the top toolbar for color, thickness, OHLC magnet,
+continuous drawing mode, lock/hide, and undo/redo. The Objects panel selects and
+removes individual drawings. Drawings persist across seeks, date changes, and
+reloads; undo/redo history lasts for the current page session.
+
+Right-click opens chart actions. Fullscreen expands the workspace; Escape exits.
+The `?` button lists shortcuts while the chart has focus: Space plays/pauses,
+Alt+Right advances one candle (including trade settlement), Ctrl/Cmd+Z undoes,
+Ctrl/Cmd+Shift+Z redoes, Delete removes the selected or latest drawing, and Home
+returns to the latest replay bar. Alt+T/H/V/R/F selects trend/horizontal/vertical/
+rectangle/Fibonacci tools. Indicator panes retain their individual settings,
+resize, reorder, maximize, hide, and removal controls.
+
+This is the simulator's own chart workspace. Pine Script execution, TradingView
+accounts/cloud layouts, and the full TradingView indicator catalog are not included.
 
 ## Build and validate
 
@@ -63,6 +95,7 @@ orders, playback, timeframe controls, and phone layout. Screenshots are saved in
 - `src/App.jsx`: React UI components.
 - `src/useReplay.js`: React replay/trading state and progressive local data loading.
 - `src/chart-controller.js`: canvas rendering, indicators, pointer interactions, drawings.
+- `src/ChartWorkspace.jsx`, `src/chart-workspace.js`: workspace controls, drawing history, geometry, and display transformations.
 - `src/data.js`, `src/trading.js`: candle merging and pure trading calculations.
 - `chart-utils.js`: shared axis, time zone, and viewport calculations.
 - `styles.css`, `chart-tools.css`, `terminal.css`: styles imported in this order.

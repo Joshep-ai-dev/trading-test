@@ -28,7 +28,7 @@ export function drawIndicatorPanes(ctx, data, config, layout, m, font) {
     if (!m.windowHeaders) ctx.fillText(`${INDICATOR_DEFINITIONS[key].name} ${parameters}   ${Number.isFinite(series[index]) ? series[index].toFixed(key === 'atr' || key === 'macd' ? 4 : 2) : 'Warming up'}`, m.left + 4, pane.top + 10);
     const ticks = key === 'rsi' ? [30, 50, 70] : key === 'adx' ? [0, 25, 50, 100] : [minimum, 0, maximum].filter((value, i, all) => all.indexOf(value) === i);
     for (const tick of ticks) {
-      ctx.strokeStyle = '#26363d'; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(m.left, y(tick)); ctx.lineTo(m.right, y(tick)); ctx.stroke();
+      ctx.strokeStyle = '#26363d'; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(m.left, y(tick)); ctx.lineTo(m.right, y(tick)); if (m.showGrid !== false) ctx.stroke();
       ctx.fillStyle = '#6f8b96'; ctx.fillText(tick.toFixed(key === 'atr' || key === 'macd' ? 3 : 0), m.right + 7, y(tick) + 3);
     }
     ctx.setLineDash([]); ctx.beginPath(); ctx.rect(m.left, plotTop, m.right - m.left, plotBottom - plotTop); ctx.clip();

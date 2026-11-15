@@ -1,3 +1,4 @@
+import ChartIcon from './ChartIcon.jsx';
 import React, { useState } from "react";
 import { INDICATOR_DEFINITIONS } from "./indicators.js";
 
@@ -38,12 +39,10 @@ export default function IndicatorLibrary({
       >
         <div className='library-heading'>
           <h2>Indicators</h2>
-          <button aria-label='Close indicator library' onClick={onCancel}>
-            ×
-          </button>
+          <button aria-label='Close indicator library' onClick={onCancel}><ChartIcon name="close" size={20}/></button>
         </div>
         <div className='library-search'>
-          <span aria-hidden='true'>⌕</span>
+          <ChartIcon name="search" size={18}/>
           <input
             autoFocus
             aria-label='Search indicators'
@@ -101,7 +100,7 @@ export default function IndicatorLibrary({
                     aria-label={`Configure ${definition.name}`}
                     onClick={() => onConfigure(key)}
                   >
-                    ⚙ Settings
+                    <ChartIcon name="settings" size={15}/> Settings
                   </button>
                 ) : (
                   <button
@@ -109,7 +108,7 @@ export default function IndicatorLibrary({
                     aria-label={`Add ${definition.name} to chart`}
                     onClick={() => onAdd(key)}
                   >
-                    ＋ Add
+                    <ChartIcon name="plus" size={16}/> Add
                   </button>
                 )}
               </div>

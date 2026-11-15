@@ -1,3 +1,4 @@
+import ChartIcon from './ChartIcon.jsx';
 import React, { useRef, useState } from 'react';
 import { DEFAULT_INDICATORS, INDICATOR_DEFINITIONS, validateIndicators } from './indicators.js';
 
@@ -16,7 +17,7 @@ export default function StudySettings({ study, config, onApply, onCancel }) {
       if (!drag.current) return;
       const maxX = Math.max(0, (window.innerWidth - dialog.current.offsetWidth) / 2 - 12), maxY = Math.max(0, (window.innerHeight - dialog.current.offsetHeight) / 2 - 12);
       setOffset({ x: Math.max(-maxX, Math.min(maxX, drag.current.offset.x + event.clientX - drag.current.x)), y: Math.max(-maxY, Math.min(maxY, drag.current.offset.y + event.clientY - drag.current.y)) });
-    }} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={() => { drag.current = null; }}><h2>{definition.name}</h2><button type="button" aria-label="Close settings" onClick={onCancel}>×</button></div>
+    }} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={() => { drag.current = null; }}><h2>{definition.name}</h2><button type="button" aria-label="Close settings" onClick={onCancel}><ChartIcon name="close" size={20}/></button></div>
     <div className="study-settings-tabs" role="tablist" aria-label="Indicator settings sections">{['Inputs', 'Style', 'Visibility'].map(value => <button type="button" role="tab" aria-selected={tab === value} className={tab === value ? 'active' : ''} key={value} onClick={() => setTab(value)}>{value}</button>)}</div>
     <div className="study-settings-body" role="tabpanel">
       {tab === 'Inputs' && Object.entries(definition.fields).map(([key, [label, , min, max, step]], index) => <label className="study-input-row" key={key}>{label}<input autoFocus={index === 0} aria-label={`${definition.name} ${label}`} type="number" required min={min} max={max} step={step} value={draft[key]} onChange={event => update(key, event.target.value)}/></label>)}

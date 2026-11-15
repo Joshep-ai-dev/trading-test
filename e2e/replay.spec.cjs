@@ -104,7 +104,7 @@ test('Sync now refreshes metadata without changing the replay cursor or open tra
   const balance = await page.locator('#balance').textContent();
   await page.locator('.sync-status-card').getByRole('button', { name: 'Sync now', exact: true }).click();
   await expect.poll(() => requested).toBe(1);
-  await expect(page.locator('.sync-status-card b')).toContainText(latest.slice(0, 16).replace('T', ' '));
+  await expect(page.locator('.sync-status-card b')).toContainText(new Date(Date.parse(latest) + 9 * 3600000).toISOString().slice(0, 16).replace('T', ' '));
   await expect(page.locator('#timeLabel')).toHaveText(timestamp);
   await expect(page.locator('#balance')).toHaveText(balance);
   await expect(page.locator('#positionStatus')).toContainText('1 active');
@@ -257,6 +257,14 @@ test('hosted deployment loads the OKX catalog and candles without a local archiv
   await expect(page.locator('.chart-legend')).toContainText('OKX DATA');
   await expect(page.locator('.sync-status-card')).toContainText('Market data refresh');
   await expect.poll(() => requested.includes('2026-08-09')).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await (await caches.open('argent-candles-v1')).keys()).length)).toBe(8);
+  const downloaded = requested.length;
+  const replayTime = await page.locator('#timeLabel').textContent();
+  await page.reload();
+  await expect(page.locator('#playBtn')).toBeEnabled();
+  await expect(page.locator('#timeLabel')).toHaveText(replayTime);
+  await expect(page.locator('#dataStatus')).toContainText('older OKX candles');
+  expect(requested.length).toBe(downloaded);
   await page.locator('.header-sync-button').click();
   await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 21:00 GMT+9');
   expect(errors).toEqual([]);

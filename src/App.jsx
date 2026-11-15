@@ -1,4 +1,7 @@
+import ChartIcon from './ChartIcon.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DRAWING_TOOLS, readWorkspace } from './chart-workspace.js';
+import { WorkspaceToolbar, ChartContextMenu } from './ChartWorkspace.jsx';
 import { useReplay } from './useReplay.js';
 import IndicatorLibrary from './IndicatorLibrary.jsx';
 import StudySettings from './StudySettings.jsx';
@@ -8,17 +11,17 @@ import { ExchangeHeader, MarketStrip, OrderTicket, TradingLedger, AccountSummary
 
 const fmt = (value, digits = 2) => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const frames = [[1, '1m'], [3, '3m'], [5, '5m'], [10, '10m'], [15, '15m'], [30, '30m'], [60, '1H'], [240, '4H'], [1440, '1D']];
-const tools = [['cursor', '＋', 'Crosshair / Pan (Esc)'], ['trend', '╱', 'Trend line: click two points'], ['horizontal', '―', 'Horizontal line'], ['measure', '↔', 'Measure: click two points'], ['text', 'T', 'Add text'], ['zoom', '⌕', 'Zoom at pointer'], ['delete', '⌫', 'Delete all drawings']];
+const tools = DRAWING_TOOLS;
 const { zonedTime, zonedCandidates, seekIndex } = globalThis.ChartUtils;
 
 function StudyWindowHeader({ study, top, maximized, overlay, onAction }) {
   return <div className={`study-pane-header${study.hidden ? ' study-hidden' : ''}${overlay ? ' overlay-study-header' : ''}`} style={{ top }}>
     <button className="study-pane-name" title="Double-click to open settings" onDoubleClick={() => onAction(study.key, 'settings')}><strong>{study.name}</strong><span>{study.parameters}</span>{study.value && <b>{study.value}</b>}</button>
     <div className="study-pane-controls">
-      <button title="Indicator settings" aria-label={`${study.name} settings`} onClick={() => onAction(study.key, 'settings')}>⚙</button>
-      <button title={study.hidden ? 'Show indicator' : 'Hide indicator'} aria-label={`${study.hidden ? 'Show' : 'Hide'} ${study.name}`} onClick={() => onAction(study.key, 'hide')}>{study.hidden ? '◌' : '◉'}</button>
-      {!overlay && <><button className="study-move" aria-label={`Move ${study.name} up`} onClick={() => onAction(study.key, 'up')}>↑</button><button className="study-move" aria-label={`Move ${study.name} down`} onClick={() => onAction(study.key, 'down')}>↓</button><button title={maximized ? 'Restore pane' : 'Maximize pane'} aria-label={`${maximized ? 'Restore' : 'Maximize'} ${study.name}`} onClick={() => onAction(study.key, 'maximize')}>{maximized ? '▣' : '□'}</button></>}
-      <button title="Remove indicator" aria-label={`Remove ${study.name}`} onClick={() => onAction(study.key, 'remove')}>×</button>
+      <button title="Indicator settings" aria-label={`${study.name} settings`} onClick={() => onAction(study.key, 'settings')}><ChartIcon name="settings" size={15}/></button>
+      <button title={study.hidden ? 'Show indicator' : 'Hide indicator'} aria-label={`${study.hidden ? 'Show' : 'Hide'} ${study.name}`} onClick={() => onAction(study.key, 'hide')}><ChartIcon name={study.hidden ? 'eye-off' : 'eye'} size={15}/></button>
+      {!overlay && <><button className="study-move" aria-label={`Move ${study.name} up`} onClick={() => onAction(study.key, 'up')}><ChartIcon name="up" size={15}/></button><button className="study-move" aria-label={`Move ${study.name} down`} onClick={() => onAction(study.key, 'down')}><ChartIcon name="down" size={15}/></button><button title={maximized ? 'Restore pane' : 'Maximize pane'} aria-label={`${maximized ? 'Restore' : 'Maximize'} ${study.name}`} onClick={() => onAction(study.key, 'maximize')}><ChartIcon name={maximized ? 'minimize' : 'maximize'} size={15}/></button></>}
+      <button title="Remove indicator" aria-label={`Remove ${study.name}`} onClick={() => onAction(study.key, 'remove')}><ChartIcon name="close" size={15}/></button>
     </div>
   </div>;
 }
@@ -62,7 +65,7 @@ function CandleCanvas({ model, options, controller, onNeedEarlier, onHover }) {
       onDoubleClick={() => resizePane(pane, pane === 'rsi' ? 70 : 100)}
       onKeyDown={event => { if (event.key === 'ArrowUp' || event.key === 'ArrowDown') { event.preventDefault(); resizePane(pane, layout[pane] + (event.key === 'ArrowUp' ? 10 : -10)); } else if (event.key === 'Home') { event.preventDefault(); resizePane(pane, pane === 'rsi' ? 70 : 100); } }}><span/><b>{pane.toUpperCase()}</b></div>)}
     {annotation && <input autoFocus className="drawing-text" aria-label="Chart annotation" maxLength={120} placeholder="Type note, Enter to save" value={annotation.text}
-      style={{ left: Math.min(canvas.current.clientWidth - 170, annotation.position.x) + 44, top: annotation.position.y }}
+      style={{ left: Math.max(0, Math.min(canvas.current.clientWidth - 170, annotation.position.x)) + 40, top: annotation.position.y }}
       onChange={event => setAnnotation({ ...annotation, text: event.target.value })}
       onKeyDown={event => { if (event.key === 'Enter' || event.key === 'Escape') { if (event.key === 'Enter') controller.current.addText(annotation.point, annotation.text); setAnnotation(null); canvas.current.focus(); } }}/>}
   </>;
@@ -71,7 +74,31 @@ function CandleCanvas({ model, options, controller, onNeedEarlier, onHover }) {
 function ChartPanel({ replay }) {
   const { model, date, dates } = replay;
   const controller = useRef(null);
-  const [timeframe, setTimeframe] = useState(1), [indicators, setIndicators] = useState(true), [tool, setTool] = useState('cursor');
+  const [workspace, setWorkspace] = useState(readWorkspace);
+  const timeframe = workspace.timeframe;
+  const setTimeframe = value => setWorkspace(previous => ({ ...previous, timeframe: value }));
+  const sectionRef = useRef(null);
+  const [expanded, setExpanded] = useState(false), [contextMenu, setContextMenu] = useState(null);
+  const [requestedPanel, setRequestedPanel] = useState(null);
+  const [drawings, setDrawings] = useState({ items: [], selected: -1, canUndo: false, canRedo: false });
+  const updateWorkspace = useCallback(patch => setWorkspace(previous => ({ ...previous, ...patch })), []);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+  const onDrawingsChange = useCallback(next => setDrawings(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next), []);
+  const onContextMenu = useCallback(point => {
+    const canvas = sectionRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    setContextMenu({ x: Math.max(4, Math.min(window.innerWidth - 225, rect.left + point.x)), y: Math.max(4, Math.min(window.innerHeight - 290, rect.top + point.y)) });
+  }, []);
+  useEffect(() => { try { localStorage.setItem('argent-chart-workspace-v1', JSON.stringify(workspace)); } catch {} }, [workspace]);
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow; document.body.style.overflow = 'hidden';
+    const escape = event => { if (event.key === 'Escape') setExpanded(false); };
+    document.addEventListener('keydown', escape);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', escape); };
+  }, [expanded]);
+  const [indicators, setIndicators] = useState(true), [tool, setTool] = useState('cursor');
   const [indicatorConfig, setIndicatorConfig] = useState(readIndicatorSettings), [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
   const [activeStudy, setActiveStudy] = useState(null), [maximizedPane, setMaximizedPane] = useState(null);
   const [paneOrder, setPaneOrder] = useState(() => {
@@ -91,13 +118,13 @@ function ChartPanel({ replay }) {
   }, [indicatorConfig]);
   useEffect(() => { try { localStorage.setItem('argent-indicator-settings', JSON.stringify(indicatorConfig)); } catch {} if (maximizedPane && !indicatorConfig[maximizedPane].enabled) setMaximizedPane(null); }, [indicatorConfig, maximizedPane]);
   useEffect(() => { try { localStorage.setItem('argent-pane-order', JSON.stringify(paneOrder)); } catch {} }, [paneOrder]);
-  const zone = 'Asia/Tokyo';
+  const zone = workspace.timeZone;
   const [timeGrid, setTimeGrid] = useState(0), [priceGrid, setPriceGrid] = useState(0), [jump, setJump] = useState('');
-  const [hover, setHover] = useState(null), [view, setView] = useState({ offset: 0, visibleCount: 120 });
+  const [hover, setHover] = useState(null), [view, setView] = useState({ offset: 0, visibleCount: 120, autoScale: true });
   const [syncStatus, setSyncStatus] = useState('');
   const onHover = useCallback(candle => setHover(previous => previous?.timestamp === candle.timestamp && previous?.close === candle.close && previous?.high === candle.high && previous?.low === candle.low ? previous : candle), []);
-  const onView = useCallback(next => setView(previous => previous.offset === next.offset && previous.visibleCount === next.visibleCount ? previous : next), []);
-  const options = useMemo(() => ({ timeframe, timeZone: zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView, onToolChange: setTool }), [timeframe, zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView]);
+  const onView = useCallback(next => setView(previous => previous.offset === next.offset && previous.visibleCount === next.visibleCount && previous.autoScale === next.autoScale ? previous : next), []);
+  const options = useMemo(() => ({ ...workspace, timeframe, timeZone: zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView, onToolChange: setTool, onDrawingsChange, onContextMenu, onTogglePlay: replay.togglePlay, onStep: replay.step }), [workspace, onDrawingsChange, onContextMenu, replay.togglePlay, replay.step, timeframe, zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView]);
   const chartModel = useMemo(() => ({ ...model, indicators }), [model, indicators]);
   const current = model.candles[model.index], quote = hover || current;
   const stamp = current ? zonedTime(current.timestamp, zone).value.replace('T', ' ') : '—';
@@ -108,25 +135,27 @@ function ChartPanel({ replay }) {
     if (index < 0) { setSyncStatus('Choose a valid time within the loaded local candles.'); return; }
     replay.seek(index);
   };
-  return <section className="chart-panel" style={{ '--min-chart-height': `${400 + (indicators ? Object.keys(INDICATOR_DEFINITIONS).filter(key => INDICATOR_DEFINITIONS[key].pane && indicatorConfig[key].enabled).length : 0) * 58}px` }}>
+  return <section ref={sectionRef} className={`chart-panel chart-workspace${expanded ? ' chart-expanded' : ''}`} style={{ '--min-chart-height': `${400 + (indicators ? Object.keys(INDICATOR_DEFINITIONS).filter(key => INDICATOR_DEFINITIONS[key].pane && indicatorConfig[key].enabled).length : 0) * 58}px` }}>
     {activeStudy && <StudySettings key={activeStudy} study={activeStudy} config={indicatorConfig} onCancel={() => setActiveStudy(null)} onApply={config => { setIndicatorConfig(config); setActiveStudy(null); }}/>}
     {showIndicatorSettings && <IndicatorLibrary config={indicatorConfig} onCancel={() => setShowIndicatorSettings(false)} onAdd={key => { setIndicatorConfig(previous => ({ ...previous, [key]: { ...previous[key], enabled: true, hidden: false } })); setIndicators(true); }} onConfigure={key => { setShowIndicatorSettings(false); setActiveStudy(key); }}/>}
     <div className="toolbar chart-toolbar">
       <span className="chart-title">Chart</span>
       <div className="timeframe-tabs" id="timeframeTabs">{frames.map(([value, label]) => <button key={value} className={timeframe === value ? 'active' : ''} onClick={() => setTimeframe(value)}>{label}</button>)}</div>
-      <div className="chart-view-actions"><button id="zoomOut" className="ghost" title="Zoom out" onClick={() => controller.current?.zoom(15)}>−</button><button id="zoomIn" className="ghost" title="Zoom in" onClick={() => controller.current?.zoom(-15)}>+</button><button id="zoomReset" className="ghost" onClick={() => controller.current?.fit()}>Fit</button><button id="priceZoomReset" className="ghost" onClick={() => controller.current?.autoScale()}>Auto</button></div>
+      <div className="chart-view-actions"><button id="zoomOut" aria-label="Zoom out" className="ghost" title="Zoom out" onClick={() => controller.current?.zoom(15)}><ChartIcon name="minus" size={15}/></button><button id="zoomIn" aria-label="Zoom in" className="ghost" title="Zoom in" onClick={() => controller.current?.zoom(-15)}><ChartIcon name="plus" size={15}/></button><button id="zoomReset" className="ghost" onClick={() => controller.current?.fit()}>Fit</button><button id="priceZoomReset" aria-pressed={view.autoScale} title="Fit visible highs and lows automatically" className="ghost" onClick={() => controller.current?.autoScale()}>Auto</button></div>
     </div>
+    <WorkspaceToolbar settings={workspace} update={updateWorkspace} drawings={drawings} controller={controller} expanded={expanded} onExpand={() => setExpanded(value => !value)} requestedPanel={requestedPanel}/>
+    {contextMenu && <ChartContextMenu position={contextMenu} onClose={closeContextMenu} controller={controller} onSettings={() => setRequestedPanel({ name: 'settings', id: Date.now() })} onIndicators={() => setShowIndicatorSettings(true)}/>}
     <details className="chart-preferences"><summary>Chart settings <span>Go to date · Grid</span></summary><div className="chart-settings">
-      <label htmlFor="jumpDate">GO TO (GMT+9)</label><input id="jumpDate" type="datetime-local" value={jump} onChange={event => setJump(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') goTo(); }}/><button id="jumpBtn" className="ghost" disabled={!current} onClick={goTo}>Go</button>
+      <label htmlFor="jumpDate">GO TO ({zone})</label><input id="jumpDate" type="datetime-local" value={jump} onChange={event => setJump(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') goTo(); }}/><button id="jumpBtn" className="ghost" disabled={!current} onClick={goTo}>Go</button>
       <label htmlFor="timeGrid">TIME GRID</label><select id="timeGrid" value={timeGrid} onChange={event => setTimeGrid(Number(event.target.value))}>{[0, 1, 5, 15, 30, 60, 240, 1440].map(value => <option key={value} value={value}>{value ? `${value} min` : 'Auto'}</option>)}</select>
       <label htmlFor="priceGrid">PRICE GRID</label><select id="priceGrid" value={priceGrid} onChange={event => setPriceGrid(Number(event.target.value))}>{[0, .01, .05, .1, .25, .5, 1, 2, 5].map(value => <option key={value} value={value}>{value || 'Auto'}</option>)}</select>
       {syncStatus && <span className="settings-message">{syncStatus}</span>}
     </div></details>
-    <div className="quote-strip"><div className="chart-actions"><span className="candle-type">Candles</span><button id="indicatorSettings" className="indicator-library-trigger" aria-label="Open indicator library" onClick={() => setShowIndicatorSettings(true)}><span>fx</span> Indicators</button><button id="indicatorBtn" className="indicator-master-visibility" title={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-label={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-pressed={indicators} onClick={() => setIndicators(value => !value)}>{indicators ? '\u25c9' : '\u25cc'}</button><button id="snapshotBtn" onClick={() => { const link = document.createElement('a'); link.download = `XAGUSDT-${date}.png`; link.href = controller.current.snapshot(); link.click(); }}>⌁ Snapshot</button></div>
+    <div className="quote-strip"><div className="chart-actions"><button id="indicatorSettings" className="indicator-library-trigger" aria-label="Open indicator library" onClick={() => setShowIndicatorSettings(true)}><ChartIcon name="indicators" size={20}/> Indicators</button><button id="indicatorBtn" className="indicator-master-visibility" title={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-label={indicators ? 'Hide all indicators' : 'Show all indicators'} aria-pressed={indicators} onClick={() => setIndicators(value => !value)}><ChartIcon name={indicators ? 'eye' : 'eye-off'} size={16}/></button><button id="snapshotBtn" aria-label="Download chart snapshot" onClick={() => { const link = document.createElement('a'); link.download = `XAGUSDT-${date}.png`; link.href = controller.current.snapshot(); link.click(); }}><ChartIcon name="camera" size={16}/> Snapshot</button></div>
       {['open', 'high', 'low', 'close'].map(key => <div key={key}><small>{key.toUpperCase()}</small><b id={`${key}Val`}>{quote ? fmt(quote[key]) : '—'}</b></div>)}
     </div>
     <div className="chart-wrap">
-      <nav className="drawing-tools" style={{ visibility: maximizedPane && indicators ? 'hidden' : undefined }} aria-label="Chart drawing tools">{tools.map(([value, icon, title]) => <button key={value} title={title} aria-label={title} aria-pressed={tool === value} className={tool === value ? 'active' : ''} onClick={() => value === 'delete' ? controller.current?.clearDrawings() : controller.current?.selectTool(value)}>{icon}</button>)}</nav>
+      <nav className="drawing-tools" style={{ visibility: maximizedPane && indicators ? 'hidden' : undefined }} aria-label="Chart drawing tools">{tools.map(([value, icon, title]) => <button key={value} title={title} aria-label={title} aria-pressed={tool === value} className={tool === value ? 'active' : ''} onClick={() => controller.current?.selectTool(value)}><ChartIcon name={icon} size={24}/></button>)}<span/><button title="Delete selected drawing (Delete)" aria-label="Delete selected drawing" disabled={workspace.drawingsLocked || !drawings.items.length} onClick={() => controller.current?.deleteDrawing()}><ChartIcon name="delete" size={22}/></button><button title="Delete all drawings" aria-label="Delete all drawings" disabled={workspace.drawingsLocked || !drawings.items.length} onClick={() => controller.current?.clearDrawings()}><ChartIcon name="trash" size={22}/></button></nav>
       <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · {replay.dataMode === 'hosted' ? 'OKX DATA' : 'LOCAL DATA'}</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
       <CandleCanvas model={chartModel} options={options} controller={controller} onNeedEarlier={replay.loadEarlier} onHover={onHover}/>
       {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Loading candles...' : replay.dataMode === 'hosted' ? 'Historical market data' : 'Local archive'}</b><span>{replay.status}</span></div>}
@@ -134,13 +163,14 @@ function ChartPanel({ replay }) {
     </div>
     <div className="replay-controls">
       <span className="replay-mode"><i/>REPLAY</span>
-      <button id="playBtn" className="play" aria-label={replay.playing ? 'Pause' : 'Play'} disabled={!current} onClick={replay.togglePlay}>{replay.playing ? 'Ⅱ' : '▶'}</button>
+      <button id="playBtn" className="play" aria-label={replay.playing ? 'Pause' : 'Play'} disabled={!current} onClick={replay.togglePlay}><ChartIcon name={replay.playing ? 'pause' : 'play'} size={17}/></button>
       <select id="speed" aria-label="Replay speed" value={replay.speed} onChange={event => replay.setSpeed(Number(event.target.value))}>{[1, 5, 15, 60, 240, 1440].map(value => <option key={value} value={value}>{value === 1440 ? '1 day/sec' : `${value}×`}</option>)}</select>
       <input id="replayDate" aria-label="Replay week start (UTC)" type="date" value={date} min={dates[0]} max={dates.at(-1)} disabled={replay.loading || !!model.positions.length} onChange={event => replay.loadDate(event.target.value)}/>
-      <button id="resetBtn" className="ghost" title="Restart replay; keep recorded trades" disabled={!date || replay.loading || !!model.positions.length} onClick={() => replay.loadDate(date)}>↻</button>
+      <button id="stepBtn" className="ghost" aria-label="Next replay candle" title="Next candle (Alt+Right)" disabled={!current || replay.loading} onClick={replay.step}><ChartIcon name="step" size={17}/></button>
+      <button id="resetBtn" className="ghost" title="Restart replay; keep recorded trades" disabled={!date || replay.loading || !!model.positions.length} onClick={() => replay.loadDate(date)}><ChartIcon name="reset" size={17}/></button>
       <b id="timeLabel">{stamp}</b>
     </div>
-    <div className="timeline"><span>REPLAY · GMT+9</span><input id="scrubber" aria-label="Replay position" type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
+    <div className="timeline"><span>REPLAY {'\u00b7'} {zone}</span><input id="scrubber" aria-label="Replay position" type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
   </section>;
 }
 
