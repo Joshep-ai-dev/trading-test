@@ -21,8 +21,8 @@ test('React loads only local candles; hover and pan reveal historical data witho
   await page.keyboard.down('Shift');
   await page.mouse.wheel(0, 100000);
   await page.keyboard.up('Shift');
-  await expect.poll(() => candleRequests.length).toBeGreaterThan(before);
-  await expect(page.locator('#dataStatus')).toContainText('older local candles');
+  expect(candleRequests.length).toBe(before);
+  await expect(page.locator('#dataStatus')).toContainText('Full local history');
   await expect(page.locator('#timeLabel')).toHaveText(replayTime);
   await page.screenshot({ path: 'test-results/react-chart-desktop.png', fullPage: true });
   expect(errors).toEqual([]);
@@ -263,7 +263,7 @@ test('hosted deployment loads the OKX catalog and candles without a local archiv
   await page.reload();
   await expect(page.locator('#playBtn')).toBeEnabled();
   await expect(page.locator('#timeLabel')).toHaveText(replayTime);
-  await expect(page.locator('#dataStatus')).toContainText('older OKX candles');
+  await expect(page.locator('#dataStatus')).toContainText('Full OKX history');
   expect(requested.length).toBe(downloaded);
   await page.locator('.header-sync-button').click();
   await expect(page.locator('.sync-status-card')).toContainText('2026-08-16 21:00 GMT+9');

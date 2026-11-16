@@ -37,3 +37,27 @@ test('history loads concurrently with bounded requests and chronological dedupli
   const controller = new AbortController(); controller.abort();
   await assert.rejects(readDays([1], () => assert.fail('aborted request started'), controller.signal), { name: 'AbortError' });
 });
+
+test('replay date selection uses the full archive and restores exact saved candles', async () => {
+  const { replayDateIndex } = await import('../src/data.js');
+  const start = Date.parse('2026-08-01T00:00:00Z');
+  const candles = Array.from({ length: 20 * 1440 }, (_, i) => ({ timestamp: start + i * 60000 }));
+  assert.equal(replayDateIndex(candles, '2026-08-10'), 9 * 1440 + 89);
+  assert.equal(replayDateIndex(candles, '2026-08-01', candles.at(-1).timestamp), candles.length - 1);
+  assert.equal(replayDateIndex(candles, '2026-08-01', start + 500), -1);
+  assert.equal(replayDateIndex([], '2026-08-01'), -1);
+});
+
+test('full archive loading stops scheduling days after a failed request', async () => {
+  const { readDays } = await import('../src/data.js');
+  const requested = [], progress = [];
+  await assert.rejects(readDays([1, 2, 3, 4, 5, 6], async day => {
+    requested.push(day);
+    if (day === 1) throw new Error('Missing archive day');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    return [];
+  }, undefined, 3, done => progress.push(done)), /Missing archive day/);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.ok(requested.length <= 3);
+  assert.deepEqual(progress, []);
+});

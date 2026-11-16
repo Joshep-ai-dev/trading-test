@@ -165,12 +165,13 @@ function ChartPanel({ replay }) {
       <span className="replay-mode"><i/>REPLAY</span>
       <button id="playBtn" className="play" aria-label={replay.playing ? 'Pause' : 'Play'} disabled={!current} onClick={replay.togglePlay}><ChartIcon name={replay.playing ? 'pause' : 'play'} size={17}/></button>
       <select id="speed" aria-label="Replay speed" value={replay.speed} onChange={event => replay.setSpeed(Number(event.target.value))}>{[1, 5, 15, 60, 240, 1440].map(value => <option key={value} value={value}>{value === 1440 ? '1 day/sec' : `${value}×`}</option>)}</select>
-      <input id="replayDate" aria-label="Replay week start (UTC)" type="date" value={date} min={dates[0]} max={dates.at(-1)} disabled={replay.loading || !!model.positions.length} onChange={event => replay.loadDate(event.target.value)}/>
+      <input id="replayDate" aria-label="Replay start date (UTC)" type="date" value={date} min={dates[0]} max={dates.at(-1)} disabled={replay.loading || !!model.positions.length} onChange={event => replay.loadDate(event.target.value)}/>
       <button id="stepBtn" className="ghost" aria-label="Next replay candle" title="Next candle (Alt+Right)" disabled={!current || replay.loading} onClick={replay.step}><ChartIcon name="step" size={17}/></button>
       <button id="resetBtn" className="ghost" title="Restart replay; keep recorded trades" disabled={!date || replay.loading || !!model.positions.length} onClick={() => replay.loadDate(date)}><ChartIcon name="reset" size={17}/></button>
       <b id="timeLabel">{stamp}</b>
     </div>
-    <div className="timeline"><span>REPLAY {'\u00b7'} {zone}</span><input id="scrubber" aria-label="Replay position" type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
+    <div className="timeline"><span>REPLAY {'\u00b7'} {zone}</span><input id="scrubber" aria-label="Replay position" aria-valuetext={stamp} type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
+    {model.candles.length > 0 && <div className="timeline-bounds" aria-label="Full replay date range"><span>{zonedTime(model.candles[0].timestamp, zone).value.replace('T', ' ').slice(0, 16)}</span><span id="timelineEnd" data-timestamp={model.candles.at(-1).timestamp}>Latest saved: {zonedTime(model.candles.at(-1).timestamp, zone).value.replace('T', ' ').slice(0, 16)}</span></div>}
   </section>;
 }
 

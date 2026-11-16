@@ -28,19 +28,22 @@ start through the current UTC day. Daily JSON files are saved atomically in
 triggers the independent background downloader; the chart still reads saved
 files only. Internet access to OKX is needed for downloading, not for replay.
 
-The app selects a saved week by default and remembers your date selection.
-Pan/scroll left to preload earlier days from local files in batches of up to 30 days.
+The app loads the complete available archive before replay, showing day-by-day
+loading progress. The replay timeline spans the earliest saved candle through
+the latest available candle, with both endpoints labeled. Changing the replay
+start date reuses the loaded archive instead of limiting it to seven days.
 Completed days are cached in the browser across reloads; history requests use
 bounded concurrency. Today's data stays fresh, and sync retains completed history.
 The visible timestamps, replay cursor, balances, and open positions are preserved.
 Hover updates the OHLC readout and candle time. Future replay candles stay hidden
-until playback or seeking reaches them. Playback appends newer saved days as needed.
+until playback or seeking reaches them. Playback never changes the timeline's
+endpoint. Sync adds genuinely newer candles while preserving the replay cursor.
 Missing/empty archive dates are handled without online chart requests.
 
 Mouse wheel zooms around the pointer; drag the chart to pan. Shift-wheel or
 horizontal trackpad scrolling pans. Drag price/time axes to scale them. Double-click
 the price axis to restore auto scale. Two-finger pinch zooms on touch screens.
-Close positions before seeking. Selecting a new week or restarting replay keeps recorded trades and balance.
+Close positions before seeking. Selecting a new date or restarting replay keeps recorded trades and balance.
 Close open positions before changing the replay date.
 
 ## Chart workspace

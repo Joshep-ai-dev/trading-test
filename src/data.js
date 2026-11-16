@@ -44,17 +44,38 @@ export async function readLocalDay(date, signal) {
 }
 
 // Bound concurrency so long history requests do not flood the server/exchange.
-export async function readDays(days, readDay, signal, concurrency = 3) {
+export async function readDays(days, readDay, signal, concurrency = 3, onProgress = () => {}) {
   const chunks = Array(days.length);
   let next = 0;
+  let completed = 0;
+  let failed = false;
   await Promise.all(Array.from({ length: Math.min(concurrency, days.length) }, async () => {
-    while (next < days.length) {
+    while (next < days.length && !failed) {
       signal?.throwIfAborted();
       const index = next++;
-      chunks[index] = await readDay(days[index], signal);
+      try {
+        chunks[index] = await readDay(days[index], signal);
+        if (!failed) onProgress(++completed, days.length);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
     }
   }));
   return mergeCandles([], chunks.flat());
+}
+
+export function replayDateIndex(candles, date, restoredTimestamp) {
+  if (!candles.length) return -1;
+  const target = restoredTimestamp ?? Date.parse(`${date}T00:00:00Z`);
+  let low = 0, high = candles.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (candles[middle].timestamp < target) low = middle + 1;
+    else high = middle;
+  }
+  if (restoredTimestamp !== undefined) return candles[low]?.timestamp === target ? low : -1;
+  return Math.min(low + 89, candles.length - 1);
 }
 
 export function mergeCandles(previous, incoming) {

@@ -54,6 +54,10 @@ export function createChartController(chart, initialOptions = {}) {
       return barCache.bars;
     const size = Number(options.timeframe || 1),
       bars = [];
+    if (size === 1) {
+      barCache = { candles: state.candles, index: state.index, timeframe: options.timeframe, bars: state.candles.slice(0, state.index + 1) };
+      return barCache.bars;
+    }
     for (const candle of state.candles.slice(0, state.index + 1)) {
       const minute = Math.floor(candle.minute / size) * size;
       let bar = bars[bars.length - 1];
@@ -128,11 +132,14 @@ export function createChartController(chart, initialOptions = {}) {
     if (!data.length) return;
     const config = options.indicatorConfig || DEFAULT_INDICATORS;
     const configKey = JSON.stringify(config);
-    if (indicatorCache.bars !== bars || indicatorCache.key !== configKey)
+    // Indicator calculations are causal. Cache the 1m archive once and render
+    // only the replay prefix, keeping future candles and values off the chart.
+    const indicatorSource = Number(options.timeframe) === 1 ? state.candles : bars;
+    if (indicatorCache.bars !== indicatorSource || indicatorCache.key !== configKey)
       indicatorCache = {
-        bars,
+        bars: indicatorSource,
         key: configKey,
-        data: calculateIndicators(bars, config),
+        data: calculateIndicators(indicatorSource, config),
       };
     const indicators = state.indicators ? indicatorCache.data : {};
     let layout = indicatorLayout(

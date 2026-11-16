@@ -15,7 +15,7 @@ test('Auto fits visible highs and lows while panning, but hover never changes th
   });
   await page.goto('/');
   await expect(page.locator('#playBtn')).toBeEnabled();
-  await expect(page.locator('#dataStatus')).toContainText('older local candles');
+  await expect(page.locator('#dataStatus')).toContainText('Full local history');
   await page.locator('#priceZoomReset').click();
   const chart = page.locator('#chart'), box = await chart.boundingBox();
   const ticks = () => page.evaluate(() => window.axisTicks);

@@ -29,7 +29,7 @@ export function MarketStrip({ model }) {
   const current = model.candles[model.index];
   const stats = useMemo(() => {
     if (!current) return null;
-    const day = model.candles.slice(0, model.index + 1).filter(c => c.timestamp > current.timestamp - 86400000);
+    const day = model.candles.slice(Math.max(0, model.index - 1440), model.index + 1).filter(c => c.timestamp > current.timestamp - 86400000);
     return { change: (current.close / day[0].open - 1) * 100, high: Math.max(...day.map(c => c.high)), low: Math.min(...day.map(c => c.low)), volume: day.reduce((sum, c) => sum + c.volume, 0) };
   }, [model.candles, model.index, current]);
   return <section className="market-strip" aria-label="Market summary"><div className="market-identity"><span className="silver-token">Ag</span><div><h1>XAG<span>/USDT</span><em>PERP</em></h1><p>Silver perpetual futures</p></div></div><div className="market-price"><strong className={stats ? tone(stats.change) : ''}>{current ? fmt(current.close) : '—'}</strong><span>Replay mark price</span></div><div className="market-metrics">{[['24h change', stats ? `${signed(stats.change)}%` : '—', stats ? tone(stats.change) : ''], ['24h high', stats ? fmt(stats.high) : '—'], ['24h low', stats ? fmt(stats.low) : '—'], ['24h volume · contracts', stats ? fmt(stats.volume, 0) : '—']].map(([label, value, color]) => <div key={label}><small>{label}</small><b className={color}>{value}</b></div>)}</div><span className="market-source"><i/>OKX historical feed</span></section>;

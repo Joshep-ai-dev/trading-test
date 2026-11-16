@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DAY, dateOf, mergeCandles, prependHistory, readLocalDay, readDays } from './data.js';
+import { dateOf, prependHistory, readLocalDay, readDays, replayDateIndex } from './data.js';
 import { INITIAL_BALANCE, closeTrade, enterTrade, settleCandle, updateProtection, resetAccount } from './trading.js';
 import { readJournal, writeJournal } from './journal.js';
 
@@ -12,8 +12,7 @@ export function useReplay() {
   const savedJournal = useRef(initialJournal), bootPending = useRef(true);
   const [recordStatus, setRecordStatus] = useState('Trade records save in this browser');
   const [removedRecord, setRemovedRecord] = useState(null);
-  const cache = useRef(new Map()), historyBusy = useRef(false), nextBusy = useRef(false), available = useRef([]);
-  const historyCursor = useRef(''), nextCursor = useRef('');
+  const cache = useRef(new Map()), available = useRef([]), archive = useRef(null);
   const [dates, setDates] = useState([]), [date, setDate] = useState('');
   const [dataMode, setDataMode] = useState('local');
   const modeRef = useRef('local'), hostedRefreshAt = useRef(0);
@@ -44,26 +43,23 @@ export function useReplay() {
     controller.current?.abort();
     controller.current = new AbortController();
     const signal = controller.current.signal;
-    historyBusy.current = false; nextBusy.current = false;
     setDate(selected); setPlaying(false); setLoading(true);
     commit({ ...emptyModel(session), ...accountState });
     setStatus(modeRef.current === 'hosted' ? 'Loading historical OKX candles…' : 'Reading saved 1-minute candles…');
     try {
-      const start = Date.parse(`${selected}T00:00:00Z`);
-      const restoreDate = restore ? dateOf(restore.timestamp) : null;
-      const selectedDays = available.current.filter(day => {
-        const timestamp = Date.parse(`${day}T00:00:00Z`);
-        return (timestamp >= start && timestamp < start + DAY * 7) || day === restoreDate;
+      const selectedDays = [...available.current];
+      if (!selectedDays.includes(selected)) throw new Error('Choose a date within the available history.');
+      const key = selectedDays.join(',');
+      const candles = archive.current?.key === key ? archive.current.candles : await readDays(selectedDays, readDay, signal, 3, (completed, total) => {
+        if (session === generation.current) setStatus(`Loading full history: ${completed} / ${total} days`);
       });
-      if (!selectedDays.length) throw new Error(modeRef.current === 'hosted' ? 'Choose a date within the available OKX history.' : 'No local candles for this week. Select a saved date or run npm run download:data.');
-      const candles = await readDays(selectedDays, readDay, signal);
       if (session !== generation.current) return;
-      historyCursor.current = selectedDays[0]; nextCursor.current = selectedDays.at(-1);
-      if (!candles.length) throw new Error('No candles are available for this week. Choose another date.');
-      const restoredIndex = restore ? candles.findIndex(candle => candle.timestamp === restore.timestamp) : -1;
+      if (!candles.length) throw new Error('No candles are available in the saved history.');
+      archive.current = { key, candles };
+      const restoredIndex = restore ? replayDateIndex(candles, selected, restore.timestamp) : -1;
       if (restore?.positions.length && restoredIndex < 0) throw new Error('The candle for your saved positions is unavailable. Restore that local day before continuing.');
-      commit({ ...emptyModel(session), ...accountState, candles, index: restoredIndex >= 0 ? restoredIndex : Math.min(89, candles.length - 1) });
-      setStatus(`${candles.length.toLocaleString()} ${modeRef.current === 'hosted' ? 'OKX' : 'local'} candles · pan left to load older days`);
+      commit({ ...emptyModel(session), ...accountState, candles, index: restoredIndex >= 0 ? restoredIndex : replayDateIndex(candles, selected) });
+      setStatus(`Full ${modeRef.current === 'hosted' ? 'OKX' : 'local'} history: ${candles.length.toLocaleString()} candles through ${dateOf(candles.at(-1).timestamp)}`);
       try { localStorage.setItem('argent-replay-date', selected); } catch {}
     } catch (error) {
       if (session === generation.current && error.name !== 'AbortError') setStatus(error.message);
@@ -106,18 +102,24 @@ export function useReplay() {
       setDates(previous => previous.join() === catalog.dates.join() ? previous : catalog.dates);
       const latest = [result.latestCandle, catalog.latestCandle, lastWatermark.current].filter(Boolean).sort().at(-1) || null;
       setSyncState(previous => ({ ...result, lastSync: result.lastSync || previous.lastSync, nextSync: result.nextSync || previous.nextSync, latestCandle: latest }));
-      if (latest && latest !== lastWatermark.current) {
+      const changed = latest && latest !== lastWatermark.current;
+      if (changed) {
         lastWatermark.current = latest;
-        // Preserve completed history; refresh only the mutable archive tail.
         const changedDate = dateOf(Date.parse(latest));
         for (const day of cache.current.keys()) if (day >= changedDate) cache.current.delete(day);
-        const current = ref.current, session = generation.current;
-        if (current.candles.length && current.candles.at(-1).timestamp >= Date.now() - DAY * 2 && !historyBusy.current && !nextBusy.current) {
-          const lastDate = dateOf(current.candles.at(-1).timestamp);
-          const recentDays = catalog.dates.filter(day => day >= lastDate).slice(-3);
-          let incoming = [];
-          for (const day of recentDays) incoming.push(...await readDay(day, controller.current.signal));
-          if (session === generation.current) commit(previous => prependHistory(previous, incoming));
+      }
+      const current = ref.current, session = generation.current;
+      if (archive.current && current.candles.length) {
+        const known = new Set(archive.current.key.split(','));
+        const missing = catalog.dates.filter(day => !known.has(day));
+        const tailDate = dateOf(current.candles.at(-1).timestamp);
+        const days = [...new Set([...missing, ...(changed ? catalog.dates.filter(day => day >= tailDate) : [])])].sort();
+        if (days.length) {
+          const incoming = await readDays(days, readDay, controller.current.signal);
+          if (session === generation.current) {
+            commit(previous => prependHistory(previous, incoming));
+            archive.current = { key: catalog.dates.join(','), candles: ref.current.candles };
+          }
         }
       }
     } catch (error) { setSyncState(previous => ({ ...previous, error: error.message, running: false })); }
@@ -136,66 +138,33 @@ export function useReplay() {
     catch { setRecordStatus('Storage unavailable — export CSV to keep your trades'); }
   }, [model, date]);
 
-  const loadEarlier = useCallback(async () => {
-    const current = ref.current;
-    if (historyBusy.current || !current.candles.length) return;
-    const earliest = historyCursor.current;
-    const days = available.current.filter(day => day < earliest).slice(-30);
-    if (!days.length) return;
-    historyBusy.current = true;
-    const session = generation.current;
-    setStatus(modeRef.current === 'hosted' ? 'Loading older OKX candles…' : 'Reading older candles from local files…');
-    try {
-      const rows = await readDays(days, readDay, controller.current.signal);
-      if (session !== generation.current) return;
-      historyCursor.current = days[0];
-      commit(previous => prependHistory(previous, rows));
-      setStatus(`Loaded older ${modeRef.current === 'hosted' ? 'OKX' : 'local'} candles · ${ref.current.candles.length.toLocaleString()} candles available`);
-    } catch (error) {
-      if (session === generation.current && error.name !== 'AbortError') setStatus(`Local history: ${error.message}`);
-    } finally { if (session === generation.current) historyBusy.current = false; }
-  }, [commit, readDay]);
-
-  const loadNext = useCallback(async () => {
-    if (nextBusy.current || !ref.current.candles.length) return;
-    const last = nextCursor.current;
-    const day = available.current.find(item => item > last);
-    if (!day) { setPlaying(false); setStatus('End of saved local data.'); return; }
-    nextBusy.current = true;
-    const session = generation.current;
-    try {
-      const rows = await readDay(day, controller.current.signal);
-      if (session !== generation.current) return;
-      nextCursor.current = day;
-      commit(previous => ({ ...previous, candles: mergeCandles(previous.candles, rows) }));
-      setStatus(`Loaded ${day} from ${modeRef.current === 'hosted' ? 'OKX' : 'local storage'}`);
-    } catch (error) {
-      if (session === generation.current) { setStatus(error.message); setPlaying(false); }
-    } finally { if (session === generation.current) nextBusy.current = false; }
-  }, [commit, readDay]);
+  // The complete archive is loaded before replay. Playback never extends a
+  // seven-day window, so the scrubber's end always remains the latest candle.
+  const loadEarlier = useCallback(() => {}, []);
+  const stopAtEnd = useCallback(() => {
+    setPlaying(false); setStatus('Latest available candle reached.');
+  }, []);
 
   useEffect(() => {
     if (!playing) return;
     const timer = setInterval(() => {
       const current = ref.current;
-      if (current.index >= current.candles.length - 1) { loadNext(); return; }
+      if (current.index >= current.candles.length - 1) { stopAtEnd(); return; }
       const index = current.index + 1;
       commit(settleCandle({ ...current, index }, current.candles[index]));
-      if (index > current.candles.length - 60) loadNext();
     }, Math.max(40, 700 / speed));
     return () => clearInterval(timer);
-  }, [playing, speed, commit, loadNext]);
+  }, [playing, speed, commit, stopAtEnd]);
 
   const togglePlay = useCallback(() => { if (ref.current.candles.length) setPlaying(value => !value); }, []);
   const step = useCallback(() => {
     setPlaying(false);
     const current = ref.current;
     if (!current.candles.length) return;
-    if (current.index >= current.candles.length - 1) { loadNext(); return; }
+    if (current.index >= current.candles.length - 1) { stopAtEnd(); return; }
     const index = current.index + 1;
     commit(settleCandle({ ...current, index }, current.candles[index]));
-    if (index > current.candles.length - 60) loadNext();
-  }, [commit, loadNext]);
+  }, [commit, stopAtEnd]);
 
   const seek = index => {
     if (ref.current.positions.length) { setStatus('Close open positions before seeking.'); return; }
