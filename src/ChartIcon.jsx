@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  ArrowDown, ArrowUp, Camera, CandlestickChart, Crosshair, Delete, Eye, EyeOff,
+  ArrowDown, ArrowUp, Camera, CandlestickChart, ChevronsRight, Crosshair, Delete, Eye, EyeOff,
   HelpCircle, Layers, Lock, LockOpen, Magnet, Maximize, Minimize, Minus, Pause,
   PencilLine, Play, Plus, Redo2, RotateCcw, Ruler, Search, Settings, StepForward,
   Trash2, Type, Undo2, X, ZoomIn,
@@ -14,6 +14,7 @@ const ICONS = {
   pencil: PencilLine, play: Play, plus: Plus, redo: Redo2, reset: RotateCcw,
   measure: Ruler, search: Search, settings: Settings, step: StepForward,
   trash: Trash2, text: Type, undo: Undo2, close: X, zoom: ZoomIn,
+  latest: ChevronsRight,
 };
 
 // Chart-specific geometry: line anchors, ray, retracement levels, and formula.

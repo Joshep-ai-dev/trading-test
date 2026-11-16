@@ -171,7 +171,7 @@ function ChartPanel({ replay }) {
       <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · {replay.dataMode === 'hosted' ? 'OKX DATA' : 'LOCAL DATA'}</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
       <CandleCanvas model={chartModel} options={options} controller={controller} onNeedEarlier={replay.loadEarlier} onHover={onHover}/>
       {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Loading candles...' : replay.dataMode === 'hosted' ? 'Historical market data' : 'Local archive'}</b><span>{replay.status}</span></div>}
-      {(Math.abs(view.offset) > .01 || view.browsing) && <button id="goLive" className="go-live" onClick={() => controller.current.latest()}>Latest replay bar</button>}
+      {(Math.abs(view.offset) > .01 || view.browsing) && <button id="goLive" className="go-live" aria-label="Latest replay bar" title="Go to latest replay bar" onClick={() => controller.current.latest()}><ChartIcon name="latest" size={20}/></button>}
     </div>
     <div className="replay-controls">
       <span className="replay-mode"><i/>REPLAY</span>
