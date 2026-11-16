@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { dateOf, prependHistory, readLocalDay, readDays, replayDateIndex } from './data.js';
 import { INITIAL_BALANCE, closeTrade, enterTrade, settleCandle, updateProtection, resetAccount } from './trading.js';
 import { readJournal, writeJournal } from './journal.js';
+import { createPackedArchive } from './packed-candles.js';
 
 const emptyModel = session => ({ session, candles: [], index: 0, rangeStart: 0, positions: [], history: [], fills: [], startingBalance: INITIAL_BALANCE, balance: INITIAL_BALANCE, nextId: 1 });
 
@@ -13,6 +14,7 @@ export function useReplay() {
   const [recordStatus, setRecordStatus] = useState('Trade records save in this browser');
   const [removedRecord, setRemovedRecord] = useState(null);
   const cache = useRef(new Map()), available = useRef([]), archive = useRef(null);
+  const packedArchive = useRef(null);
   const [dates, setDates] = useState([]), [date, setDate] = useState('');
   const [dataMode, setDataMode] = useState('local');
   const modeRef = useRef('local'), hostedRefreshAt = useRef(0);
@@ -27,7 +29,7 @@ export function useReplay() {
 
   const readDay = useCallback(async (day, signal) => {
     if (cache.current.has(day)) return cache.current.get(day);
-    const result = await readLocalDay(day, signal);
+    const result = await packedArchive.current?.readDay(day, signal) ?? await readLocalDay(day, signal);
     // Today's archive can be updated by the independent sync process.
     if (day < dateOf(Date.now())) cache.current.set(day, result);
     return result;
@@ -73,6 +75,7 @@ export function useReplay() {
       return response.json();
     }).then(result => {
       modeRef.current = result.mode || 'local'; setDataMode(modeRef.current);
+      packedArchive.current = createPackedArchive(result.archiveManifest);
       available.current = result.dates;
       setDates(result.dates);
       if (!result.dates.length) { setStatus('No local candles yet. Run npm run download:data, then reload.'); setLoading(false); return; }

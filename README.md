@@ -2,7 +2,8 @@
 
 A React browser simulator for OKX XAG-USDT-SWAP futures. Orders and balances
 are simulated. Local mode reads this computer's `.candle-data/` archive only.
-Vercel mode loads public OKX candles through serverless API functions and caches completed days.
+Vercel mode loads packaged completed history from static CDN files; only newer
+or missing days use the public OKX serverless API.
 
 ## Run
 
@@ -121,6 +122,29 @@ Deploy the repository root using the included `vercel.json`. Build command:
 functions. Do not deploy only the `dist/` folder, since that omits the data API.
 Redeploy after adding or changing these API files.
 
+### Fast hosted startup
+
+The completed public candle snapshot in `public/candle-archive/` is copied into
+the Vite build. Monthly compact OHLCV files are gzip-compressed and named by
+content hash, with immutable browser/CDN caching. The small manifest is
+revalidated on reload. The frontend downloads each month once, shares the result
+between day requests, and falls back to `/api/candles` for unpackaged days or
+unavailable packs. Today's incomplete candles never enter the static snapshot.
+The full replay timeline remains available; no seven-day loading limit returns.
+
+To refresh the snapshot after downloading/syncing local history:
+
+```bash
+npm run package:data
+npm run build
+```
+
+Include `public/candle-archive/` and the updated `vercel.json` when committing
+and redeploying. Packaging exports only timestamp/OHLCV fields from completed
+daily archive files, not accounts or trading records. It runs locally against
+`.candle-data/`; Vercel builds use the checked-in snapshot without downloading
+months of history during deployment. No extra database service is required.
+
 - `/api/local-data`: hosted date catalog from January 28, 2026 through today (UTC).
 - `/api/candles?date=YYYY-MM-DD&days=1`: historical OKX candles, with serialized
   pagination and rate-limit retries. Completed days use browser/CDN caching;
@@ -133,8 +157,8 @@ No environment variables or private exchange credentials are needed. Vercel must
 be able to reach OKX. Exchange availability/rate limits are shown as API errors.
 The date catalog represents selectable dates, and does not imply every date has
 candles. Your computer's ignored `.candle-data/` files are not uploaded by Git.
-Hosted mode uses OKX on demand; it does not provide a durable hosted copy of your
-local archive. Local `npm start` continues to serve saved files without an online
+The packaged snapshot provides a deployed copy of completed public candles;
+days outside it use OKX on demand. Local `npm start` continues to serve saved files without an online
 chart fallback. Trade records and preferences remain browser-local and separate
 for each hostname/port.
 

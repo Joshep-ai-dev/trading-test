@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const root = __dirname;
-const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
+const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.json': 'application/json', '.gz': 'application/json' };
 
 const { loadCandles, dateRange } = require('./lib/candles');
 const { createArchive, INTERVAL } = require('./lib/archive');
@@ -60,6 +60,10 @@ async function start() {
       return;
     }
     const pathname = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+    if (pathname.startsWith('/candle-archive/') && pathname.endsWith('.json.gz')) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
     const file = path.normalize(path.join(staticRoot, pathname));
     if (!file.startsWith(staticRoot + path.sep) || path.relative(staticRoot, file).split(path.sep).some(part => part.startsWith('.') && !(vite && part === '.vite'))) return res.writeHead(403).end('Forbidden');
     if (vite) return vite.middlewares(req, res);
