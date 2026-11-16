@@ -166,11 +166,13 @@ export function useReplay() {
     commit(settleCandle({ ...current, index }, current.candles[index]));
   }, [commit, stopAtEnd]);
 
-  const seek = index => {
-    if (ref.current.positions.length) { setStatus('Close open positions before seeking.'); return; }
+  const seek = useCallback(index => {
+    if (ref.current.positions.length) { setStatus('Close open positions before seeking.'); return false; }
+    if (!Number.isInteger(index) || !ref.current.candles.length) return false;
     setPlaying(false);
     commit(previous => ({ ...previous, index: Math.max(0, Math.min(previous.candles.length - 1, index)), session: previous.session + .001 }));
-  };
+    return true;
+  }, [commit]);
   return { model, dates, date, dataMode, loading, status, recordStatus, removedRecord, syncState, syncNow: () => refreshSync(true), playing, speed, setSpeed, loadDate, loadEarlier, seek,
     resetAccount(amount) {
       try {

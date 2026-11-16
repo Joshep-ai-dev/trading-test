@@ -35,9 +35,18 @@ start date reuses the loaded archive instead of limiting it to seven days.
 Completed days are cached in the browser across reloads; history requests use
 bounded concurrency. Today's data stays fresh, and sync retains completed history.
 The visible timestamps, replay cursor, balances, and open positions are preserved.
-Hover updates the OHLC readout and candle time. Future replay candles stay hidden
-until playback or seeking reaches them. Playback never changes the timeline's
+Hover updates the OHLC readout and candle time. Later replay candles appear only
+when deliberately browsing ahead, playing, or seeking. Playback never changes the timeline's
 endpoint. Sync adds genuinely newer candles while preserving the replay cursor.
+Dragging the chart synchronizes the progress bar with the rightmost visible
+candle (labeled VIEW). Ordinary crosshair movement never moves the progress bar.
+Releasing a horizontal chart drag selects that same candle as the actual replay
+position, using the same seek action as the progress bar. The replay time and
+saved journal update together; Play and Step continue from the selected candle.
+As with the progress bar, close open positions before changing replay time.
+Dragging toward newer dates reveals the later loaded candles continuously, up
+to the latest saved candle. An unfinished/cancelled drag does not seek. The
+Latest replay bar control returns to the execution cursor when browsing.
 Missing/empty archive dates are handled without online chart requests.
 
 Mouse wheel zooms around the pointer; drag the chart to pan. Shift-wheel or

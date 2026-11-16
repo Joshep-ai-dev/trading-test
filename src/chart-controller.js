@@ -23,6 +23,7 @@ export function createChartController(chart, initialOptions = {}) {
   const state = {
     candles: [],
     index: 0,
+    browseIndex: null,
     rangeStart: 0,
     positions: [],
     visibleCount: 120,
@@ -46,19 +47,20 @@ export function createChartController(chart, initialOptions = {}) {
     cleanup.push(() => chart.removeEventListener(type, handler, config));
   }
   function chartBars() {
+    const endIndex = Math.max(state.index, state.browseIndex ?? state.index);
     if (
       barCache.candles === state.candles &&
-      barCache.index === state.index &&
+      barCache.index === endIndex &&
       barCache.timeframe === options.timeframe
     )
       return barCache.bars;
     const size = Number(options.timeframe || 1),
       bars = [];
     if (size === 1) {
-      barCache = { candles: state.candles, index: state.index, timeframe: options.timeframe, bars: state.candles.slice(0, state.index + 1) };
+      barCache = { candles: state.candles, index: endIndex, timeframe: options.timeframe, bars: state.candles.slice(0, endIndex + 1) };
       return barCache.bars;
     }
-    for (const candle of state.candles.slice(0, state.index + 1)) {
+    for (const candle of state.candles.slice(0, endIndex + 1)) {
       const minute = Math.floor(candle.minute / size) * size;
       let bar = bars[bars.length - 1];
       if (!bar || bar.minute !== minute) {
@@ -73,11 +75,23 @@ export function createChartController(chart, initialOptions = {}) {
     }
     barCache = {
       candles: state.candles,
-      index: state.index,
+      index: endIndex,
       timeframe: options.timeframe,
       bars,
     };
     return bars;
+  }
+
+  function extendChartHistory() {
+    const endIndex = Math.max(state.index, state.browseIndex ?? state.index);
+    if (state.viewOffset >= 0 || endIndex >= state.candles.length - 1) return 0;
+    const previous = chartBars().length;
+    const extraBars = Math.max(state.visibleCount, Math.ceil(-state.viewOffset) + 1);
+    state.browseIndex = Math.min(state.candles.length - 1, endIndex + extraBars * Number(options.timeframe));
+    const added = chartBars().length - previous;
+    // New candles extend the right edge without shifting the candle being dragged.
+    state.viewOffset += added;
+    return added;
   }
 
   function notifyDrawings() {
@@ -133,7 +147,7 @@ export function createChartController(chart, initialOptions = {}) {
     const config = options.indicatorConfig || DEFAULT_INDICATORS;
     const configKey = JSON.stringify(config);
     // Indicator calculations are causal. Cache the 1m archive once and render
-    // only the replay prefix, keeping future candles and values off the chart.
+    // only the active replay or explicitly requested history-browsing prefix.
     const indicatorSource = Number(options.timeframe) === 1 ? state.candles : bars;
     if (indicatorCache.bars !== indicatorSource || indicatorCache.key !== configKey)
       indicatorCache = {
@@ -266,13 +280,17 @@ export function createChartController(chart, initialOptions = {}) {
       offset: state.viewOffset,
       visibleCount: state.visibleCount,
       autoScale: !state.manualPrice,
+      browsing: state.browseIndex > state.index,
     });
     if (view.first < Math.max(120, state.visibleCount)) options.onNeedEarlier?.();
-    const quote =
-      state.hoverIndex === null
-        ? bars.at(-1)
-        : bars[state.hoverIndex] || bars.at(-1);
-    options.onHover?.(quote);
+    const inspecting = state.hoverIndex !== null && state.hoverIndex >= start && state.hoverIndex <= end;
+    const viewingHistory = state.viewOffset > .01 || state.browseIndex > state.index;
+    const quote = inspecting ? bars[state.hoverIndex] : viewingHistory ? bars[end] : bars.at(-1);
+    // The timeline follows the chart viewport, never the moving crosshair.
+    options.onHover?.(quote, viewingHistory ? {
+      timestamp: (bars[end].endMinute ?? bars[end].minute) * 60000 + state.rangeStart,
+      source: 'view',
+    } : null);
     ctx.font = `12px ${fontFamily}`;
     ctx.textAlign = "left";
     ctx.setLineDash([2, 4]);
@@ -391,7 +409,7 @@ export function createChartController(chart, initialOptions = {}) {
         fontFamily,
       );
     if (!maximized) {
-      const last = bars.at(-1),
+      const last = state.browseIndex > state.index ? bars[end] : bars.at(-1),
         ly = y(last.close);
       if (options.showLastPrice && ly >= top && ly <= bottom) {
         ctx.strokeStyle = last.close >= last.open ? theme.bullish : theme.bearish;
@@ -667,6 +685,7 @@ export function createChartController(chart, initialOptions = {}) {
           Math.abs(event.deltaX) > Math.abs(event.deltaY)
         ) {
           state.viewOffset += (event.deltaX || event.deltaY) / m.step;
+          extendChartHistory();
           draw();
         } else {
           const delta =
@@ -785,6 +804,8 @@ export function createChartController(chart, initialOptions = {}) {
           state.viewOffset = view.offset;
         } else {
           state.viewOffset = gesture.offset + dx / gesture.step;
+          if (Math.abs(dx) > 3) gesture.moved = true;
+          gesture.offset += extendChartHistory();
           if (gesture.manualPrice && gesture.height > 1 && Math.abs(dy) > 3)
             state.manualPrice = {
               min: gesture.min + (dy / gesture.height) * gesture.range,
@@ -808,6 +829,8 @@ export function createChartController(chart, initialOptions = {}) {
     });
     function endGesture(event) {
       touches.delete(event.pointerId);
+      const seekBar = event.type === 'pointerup' && gesture?.mode === 'pan' && gesture.moved
+        ? state.chartMeta?.bars[state.chartMeta.end] : null;
       if (gesture?.mode === 'drawing') {
         if (event.type === 'pointercancel') { state.drawings = drawingHistory.items; draw(); }
         else if (gesture.preview) changeDrawings(gesture.preview, gesture.hit.index);
@@ -816,6 +839,8 @@ export function createChartController(chart, initialOptions = {}) {
       if (chart.hasPointerCapture(event.pointerId))
         chart.releasePointerCapture(event.pointerId);
       chart.classList.remove("dragging");
+      // Use the same navigation action as the progress bar, once the drag ends.
+      if (seekBar) options.onChartSeek?.((seekBar.endMinute ?? seekBar.minute) * 60000 + state.rangeStart);
     }
     listen("pointerup", endGesture);
     listen("pointercancel", endGesture);
@@ -836,6 +861,7 @@ export function createChartController(chart, initialOptions = {}) {
       if (!state.chartMeta || p.x < state.chartMeta.right) {
         state.visibleCount = 90;
         state.viewOffset = 0;
+        state.browseIndex = null;
       }
       state.manualPrice = null;
       state.priceScale = 1;
@@ -849,7 +875,7 @@ export function createChartController(chart, initialOptions = {}) {
       if (event.altKey && ['t', 'h', 'v', 'f', 'r'].includes(event.key.toLowerCase())) {
         event.preventDefault(); selectTool({ t: 'trend', h: 'horizontal', v: 'vertical', f: 'fib', r: 'rectangle' }[event.key.toLowerCase()]); return;
       }
-      if (event.key === 'Home') { event.preventDefault(); state.viewOffset = 0; state.manualPrice = null; autoPriceViewport = null; draw(); return; }
+      if (event.key === 'Home') { event.preventDefault(); state.browseIndex = null; state.viewOffset = 0; state.manualPrice = null; autoPriceViewport = null; draw(); return; }
       if (event.key === ' ') { event.preventDefault(); options.onTogglePlay?.(); return; }
       if (event.key === 'ArrowRight' && event.altKey) { event.preventDefault(); options.onStep?.(); return; }
       if (event.key === "Escape") {
@@ -896,6 +922,10 @@ export function createChartController(chart, initialOptions = {}) {
         ]?.minute;
       options = { ...options, ...nextOptions };
       const reset = model.session !== state.session;
+      if (state.browseIndex > state.index && model.index !== state.index) {
+        state.browseIndex = null;
+        state.viewOffset = 0;
+      }
       if (reset) autoPriceViewport = null;
       if (
         !reset &&
@@ -911,6 +941,7 @@ export function createChartController(chart, initialOptions = {}) {
       if (reset)
         Object.assign(state, {
           viewOffset: 0,
+          browseIndex: null,
           manualPrice: null,
           hoverIndex: null,
           draft: null,
@@ -945,13 +976,16 @@ export function createChartController(chart, initialOptions = {}) {
     selectTool,
     fit() {
       state.visibleCount = 120;
+      state.browseIndex = null;
       state.viewOffset = 0;
       state.manualPrice = null;
       autoPriceViewport = null;
       draw();
     },
     latest() {
+      state.browseIndex = null;
       state.viewOffset = 0;
+      state.hoverIndex = null;
       draw();
     },
     autoScale() {
@@ -972,7 +1006,7 @@ export function createChartController(chart, initialOptions = {}) {
       if (options.drawingsLocked || selectedDrawing < 0) return;
       changeDrawings(state.drawings.map((item, index) => index === selectedDrawing ? { ...item, ...style } : item), selectedDrawing);
     },
-    setVisibleBars(count) { state.visibleCount = Math.max(20, Math.min(1000, count)); state.viewOffset = 0; state.manualPrice = null; autoPriceViewport = null; draw(); },
+    setVisibleBars(count) { state.visibleCount = Math.max(20, Math.min(1000, count)); state.browseIndex = null; state.viewOffset = 0; state.manualPrice = null; autoPriceViewport = null; draw(); },
     addText(point, text) {
       if (!options.drawingsLocked && text.trim()) finishDrawing({ type: 'text', a: point, text: text.trim().slice(0, 120), color: options.drawingColor, width: options.drawingWidth });
     },

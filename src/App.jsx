@@ -122,13 +122,25 @@ function ChartPanel({ replay }) {
   const [timeGrid, setTimeGrid] = useState(0), [priceGrid, setPriceGrid] = useState(0), [jump, setJump] = useState('');
   const [hover, setHover] = useState(null), [view, setView] = useState({ offset: 0, visibleCount: 120, autoScale: true });
   const [syncStatus, setSyncStatus] = useState('');
-  const onHover = useCallback(candle => setHover(previous => previous?.timestamp === candle.timestamp && previous?.close === candle.close && previous?.high === candle.high && previous?.low === candle.low ? previous : candle), []);
-  const onView = useCallback(next => setView(previous => previous.offset === next.offset && previous.visibleCount === next.visibleCount && previous.autoScale === next.autoScale ? previous : next), []);
-  const options = useMemo(() => ({ ...workspace, timeframe, timeZone: zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView, onToolChange: setTool, onDrawingsChange, onContextMenu, onTogglePlay: replay.togglePlay, onStep: replay.step }), [workspace, onDrawingsChange, onContextMenu, replay.togglePlay, replay.step, timeframe, zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView]);
+  const [inspection, setInspection] = useState(null);
+  const onHover = useCallback((candle, nextInspection) => {
+    setHover(previous => previous?.timestamp === candle.timestamp && previous?.close === candle.close && previous?.high === candle.high && previous?.low === candle.low ? previous : candle);
+    setInspection(previous => previous?.timestamp === nextInspection?.timestamp && previous?.source === nextInspection?.source ? previous : nextInspection);
+  }, []);
+  const onView = useCallback(next => setView(previous => previous.offset === next.offset && previous.visibleCount === next.visibleCount && previous.autoScale === next.autoScale && previous.browsing === next.browsing ? previous : next), []);
+  const onChartSeek = useCallback(timestamp => {
+    const index = seekIndex(model.candles, timestamp);
+    return index >= 0 && replay.seek(index);
+  }, [model.candles, replay.seek]);
+  const options = useMemo(() => ({ ...workspace, timeframe, timeZone: zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView, onToolChange: setTool, onDrawingsChange, onContextMenu, onChartSeek, onTogglePlay: replay.togglePlay, onStep: replay.step }), [workspace, onDrawingsChange, onContextMenu, onChartSeek, replay.togglePlay, replay.step, timeframe, zone, timeGrid, priceGrid, indicatorConfig, paneOrder, maximizedPane, onStudyAction, onView]);
   const chartModel = useMemo(() => ({ ...model, indicators }), [model, indicators]);
   const current = model.candles[model.index], quote = hover || current;
   const stamp = current ? zonedTime(current.timestamp, zone).value.replace('T', ' ') : '—';
-  useEffect(() => setHover(null), [model.session]);
+  const inspecting = inspection && !replay.playing && !model.positions.length;
+  const inspectedIndex = inspecting ? seekIndex(model.candles, inspection.timestamp) : -1;
+  const timelineIndex = inspectedIndex >= 0 ? inspectedIndex : model.index;
+  const timelineStamp = model.candles[timelineIndex] ? zonedTime(model.candles[timelineIndex].timestamp, zone).value.replace('T', ' ') : stamp;
+  useEffect(() => { setHover(null); setInspection(null); }, [model.session]);
   const goTo = () => {
     const candidates = zonedCandidates(jump, zone);
     const index = candidates.length ? seekIndex(model.candles, candidates[0]) : -1;
@@ -159,7 +171,7 @@ function ChartPanel({ replay }) {
       <div className="chart-legend" style={{ display: maximizedPane && indicators ? 'none' : undefined }}><b>XAGUSDT</b><span>· {frames.find(([value]) => value === timeframe)[1]} · {replay.dataMode === 'hosted' ? 'OKX DATA' : 'LOCAL DATA'}</span>{quote && <span>{zonedTime(quote.timestamp, zone).value.replace('T', ' ')}</span>}</div>
       <CandleCanvas model={chartModel} options={options} controller={controller} onNeedEarlier={replay.loadEarlier} onHover={onHover}/>
       {!current && <div id="emptyHint" className="empty-hint"><b>{replay.loading ? 'Loading candles...' : replay.dataMode === 'hosted' ? 'Historical market data' : 'Local archive'}</b><span>{replay.status}</span></div>}
-      {Math.abs(view.offset) > .01 && <button id="goLive" className="go-live" onClick={() => controller.current.latest()}>Latest replay bar</button>}
+      {(Math.abs(view.offset) > .01 || view.browsing) && <button id="goLive" className="go-live" onClick={() => controller.current.latest()}>Latest replay bar</button>}
     </div>
     <div className="replay-controls">
       <span className="replay-mode"><i/>REPLAY</span>
@@ -170,7 +182,7 @@ function ChartPanel({ replay }) {
       <button id="resetBtn" className="ghost" title="Restart replay; keep recorded trades" disabled={!date || replay.loading || !!model.positions.length} onClick={() => replay.loadDate(date)}><ChartIcon name="reset" size={17}/></button>
       <b id="timeLabel">{stamp}</b>
     </div>
-    <div className="timeline"><span>REPLAY {'\u00b7'} {zone}</span><input id="scrubber" aria-label="Replay position" aria-valuetext={stamp} type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={model.index} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span>{current ? `${model.index + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
+    <div className="timeline"><span>{inspectedIndex >= 0 ? 'VIEW' : 'REPLAY'} {'\u00b7'} {zone}</span><input id="scrubber" aria-label="Replay position" aria-valuetext={timelineStamp} data-replay-index={model.index} data-preview-mode={inspectedIndex >= 0 ? inspection.source : 'replay'} type="range" min={0} max={Math.max(0, model.candles.length - 1)} value={timelineIndex} disabled={!current || !!model.positions.length} onChange={event => replay.seek(Number(event.target.value))}/><span title={inspectedIndex >= 0 ? `Inspecting ${timelineStamp}. Replay remains at ${stamp}.` : stamp}>{current ? `${timelineIndex + 1} / ${model.candles.length.toLocaleString()}` : '—'}</span></div>
     {model.candles.length > 0 && <div className="timeline-bounds" aria-label="Full replay date range"><span>{zonedTime(model.candles[0].timestamp, zone).value.replace('T', ' ').slice(0, 16)}</span><span id="timelineEnd" data-timestamp={model.candles.at(-1).timestamp}>Latest saved: {zonedTime(model.candles.at(-1).timestamp, zone).value.replace('T', ' ').slice(0, 16)}</span></div>}
   </section>;
 }
