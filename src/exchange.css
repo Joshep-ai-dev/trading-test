@@ -412,7 +412,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
 .chart-context-menu { position:fixed; z-index:120; width:215px; background:#17232d; border:1px solid #394751; box-shadow:0 10px 36px #0008; border-radius:6px; padding:6px; }
 .chart-context-menu button { display:block; text-align:left; padding:9px 10px; width:100%; background:transparent; border:0; color:#c5cbd4; font-size:12px; border-radius:3px; }
 .chart-context-menu button:hover,.chart-context-menu button:focus { background:#2962ff26; color:#a8c1ff; }
-.chart-workspace .drawing-tools { gap:3px; padding:8px 0; overflow-y:auto; scrollbar-width:thin; }
+.chart-workspace .drawing-tools { gap:3px; padding:8px 0; overflow-x:hidden; overflow-y:auto; scrollbar-width:none; overscroll-behavior:contain; }
+.chart-workspace .drawing-tools::-webkit-scrollbar { display:none; width:0; height:0; }
 .chart-workspace .drawing-tools button { min-height:26px; height:26px; flex-shrink:0; font-size:18px; color:#9ba7b5; }
 .chart-workspace .drawing-tools button.active { color:#82a6ff; background:#2962ff26; }
 .chart-workspace .drawing-tools span { flex-shrink:0; }

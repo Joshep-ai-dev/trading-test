@@ -89,6 +89,18 @@ test('mobile workspace panels and drawing toolbar fit the screen', async ({ page
   await page.goto('/'); await expect(page.locator('#playBtn')).toBeEnabled();
   await expect(page.getByRole('link', { name: 'Argent Replay home' })).toBeVisible();
   await expect.poll(() => page.locator('.argent-mark').evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+  const rail = page.getByRole('navigation', { name: 'Chart drawing tools' });
+  const railLayout = await rail.evaluate(element => ({
+    width: element.clientWidth, contentWidth: element.scrollWidth,
+    scrollbar: getComputedStyle(element).scrollbarWidth,
+  }));
+  expect(railLayout.contentWidth).toBeLessThanOrEqual(railLayout.width);
+  expect(railLayout.scrollbar).toBe('none');
+  // A short chart must retain access to the lower tools without visible bars.
+  await rail.evaluate(element => { element.style.height = '180px'; });
+  await page.getByRole('button', { name: 'Zoom at pointer', exact: true }).focus();
+  await expect.poll(() => rail.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  await rail.evaluate(element => { element.style.height = ''; element.scrollTop = 0; });
   await page.getByRole('button', { name: 'Chart display settings', exact: true }).click();
   await expect(page.getByLabel('Chart time zone', { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
